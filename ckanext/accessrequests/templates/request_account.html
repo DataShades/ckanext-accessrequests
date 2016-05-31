@@ -1,0 +1,61 @@
+{% import 'macros/form.html' as form %}
+<form action="{{ h.url_for('request_account') }}" method="POST" id="request-account-form">
+    {{ form.errors(errors=error_summary) }}
+    {{ form.hidden('admin', value="") }}
+    <table border="0" style="min-width:660px">
+        <tbody>
+
+        <tr>
+            <td colspan="2">{{ form.input('name', label=_("Name"), id='field-name', value="", error=None, classes=['control-medium'], is_required=true, attrs={'required':'required'}) }} </td>
+        </tr>
+        <tr>
+            <td colspan="2">{{ form.input('email', label=_("Email address"), id='field-email', value="", error=None, classes=['control-medium'], is_required=true, attrs={'required':'required'}) }}</td>
+        </tr>
+        <tr>
+            <td colspan="2">{{ form.input('title', label=_("Position title"), id='field-title', value="", error=None, classes=['control-medium']) }}</td>
+        </tr>
+        <tr>
+            <td colspan="2">{{ form.select('agency', classes=['control-medium'], label=_('Agency'), options=h.get_agencies()[0], is_required=true, attrs={'required':'required'}) }} </td>
+        </tr>
+        <tr>
+            <td style="width: 30%; ">
+                <div class="control-group  control-select"><label class="" for="role"><span
+                        title="This field is required" class="control-required">*</span> Access to IAR Requested</label>
+                </div>
+            </td>
+            <td style="text-align:right;"><div class="control-medium"><select id="role" name="role" required="required">
+                <option value="admin">Agency Dataset Manager</option>
+                <option value="editor">Agency Dataset Creator</option>
+                <option value="member" selected="">IAR Viewer</option>
+            </select></div></td>
+        </tr>
+        <tr>
+            <td style="width: 40%; ">
+                <div class="control-group control-text"><label class="" for="field-notes">Reason for Requesting Access to IAR</label>
+                </div>
+            </td>
+            <td style="text-align:right;">
+                <div class="control-medium"><input type="text" id="field-notes" name="notes" cols="10" rows="3" placeholder="" style="width: 306px;"></input></div>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="text-align: right;">
+                <div class="control-group ">
+                    <div class="controls"><input id="field-agree" type="checkbox" name="agree" value="1" required="required" style="float:left;"/>
+                        <label class="checkbox" for="field-agree" style="padding-left:0;">
+
+                        Please check this box to confirm you accept and agree with <A href="/iar/pages/terms-of-use" target="_blank">Terms
+                        of Use</a></label>  </div>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="form-actions">
+        {% block submit_button %}
+            <button class="btn btn-primary" id="account-request-submit">{{ _('Proceed') }}</button>
+        {% endblock %}
+    </div>
+
+</form>
