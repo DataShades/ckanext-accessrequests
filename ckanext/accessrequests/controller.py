@@ -10,6 +10,7 @@ import ckan.logic as logic
 import logging
 import os
 import random
+from pylons import config
 
 #from model import UserTitle
 
@@ -56,7 +57,12 @@ class AccessRequestsController(UserController):
         data = data or {}
         errors = errors or {}
         error_summary = error_summary or {}
-        vars = {'data': data, 'errors': errors, 'error_summary': error_summary}
+        organizations = logic.get_action('organization_list')({}, {})
+        organization = []
+        for org in organizations:
+          organization.append(logic.get_action('organization_show')({},{'id': org}))
+
+        vars = {'data': data, 'errors': errors, 'error_summary': error_summary, 'organization': organization}
 
         c.is_sysadmin = authz.is_sysadmin(c.user)
         c.form = render(self.new_user_form, extra_vars=vars)
@@ -73,10 +79,25 @@ class AccessRequestsController(UserController):
             password1 = password,
             password2 = password,
             state = model.State.PENDING,
-            email = params['email']
+            email = params['email'],
+            organization_request = params['organization-for-request'],
+            reason_to_access = params['reason-to-access']
             )
+        organization = model.Group.get(data['organization_request'])
         try:
             user_dict = logic.get_action('user_create')(context, data)
+            context1 = {
+                'user': model.Session.query(model.User).filter_by(sysadmin=True).first().name,
+            }
+            user_data_dict = {
+                'id': data['organization_request'],
+                'username': data['name'],
+                'role': 'admin'
+            }
+            msg = "New account's request:\nName: " + data['name'] + "\nEmail: " + data['email'] + "\nAgency: " + organization.display_name + "\nNotes: " + data['reason_to_access']
+            mailer.mail_recipient('Admin', config.get('ckan.site_email'), 'Account request', msg)
+            logic.get_action('organization_member_create')(context1, user_data_dict)
+            h.flash_success('The request have beem sent')
         except ValidationError, e:
             # return validation failures to the form
             errors = e.error_dict
@@ -84,9 +105,8 @@ class AccessRequestsController(UserController):
             return self.request_account(data, errors, error_summary)
 
         # TODO: turn into a template
-        #msg = "New account's request:\nUsername: {name}\nEmail: {email}\nAgency: {agency}\nRole: {role}\nNotes: {notes}".format(**params)
-        #mailer.mail_recipient('Admin', params['admin'], 'Account request', msg)
-
+        # msg = "New account's request:\nUsername: {name}\nEmail: {email}\nAgency: {agency}\nRole: {role}\nNotes: {notes}".format(**params)
+ 
         # redirect to confirmation page/display success flash message
         h.redirect_to('/')
 
@@ -97,6 +117,7 @@ class AccessRequestsController(UserController):
         accounts = [{
             'id':user.id,
             'name':user.display_name,
+            'username': user.name,
             'email': user.email,
         } for user in all_account_requests()]
         return render('admin/account_requests.html', {'accounts': accounts})
@@ -107,18 +128,31 @@ class AccessRequestsController(UserController):
         '''
         action = request.params['action']
         user_id = request.params['id']
+        user_name = request.params['name']
         user = model.User.get(user_id)
+        user_email = logic.get_action('user_show')({},{'id': user_id})
+        context2 = {
+            'user': user_name
+        }
+        org = logic.get_action('organization_list_for_user')(context2, {'permission': 'read'})
+        if org:
+            user_delete = {
+                'id': org[0]['name'],
+                'object': user_name,
+                'object_type': 'user'
+            }
 
         context = {
             'model': model,
             'session': model.Session,
         } 
-
+        
         if action == 'forbid':
-            # remove user
+            # remove user, {{'user_email': user_email}}
+            if org:
+                logic.get_action('member_delete')(context, user_delete)  
             logic.get_action('user_delete')(context, {'id':user_id})
-
-            # TODO: notify user
+            mailer.mail_recipient(user_email['name'], user_email['email'], 'Account request', 'Your account request has been denied.')
 
         elif action == 'approve':
             # Send invitation to complete registration
@@ -129,3 +163,4 @@ class AccessRequestsController(UserController):
                 abort(500, _('Error: couldn''t email invite to user'))
 
         response.status = 200
+        return render('admin/account_requests_management.html')

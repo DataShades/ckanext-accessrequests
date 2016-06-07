@@ -18,13 +18,13 @@ class AccessRequestsPlugin(plugins.SingletonPlugin):
         with SubMapper(map,
                        controller='ckanext.accessrequests.controller:AccessRequestsController') as m:
             m.connect('account_requests',
-                      '/ckan-admin/account_requests',
+                      '/admin/account_requests',
                       action='account_requests')
             m.connect('request_account',
                       '/user/register',
                       action='request_account')
             m.connect('account_requests_management',
-                      '/ckan-admin/account_requests_management',
+                      '/admin/account_requests_management',
                       action='account_requests_management')
         return map
 

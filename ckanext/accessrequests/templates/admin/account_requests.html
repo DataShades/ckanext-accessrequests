@@ -20,8 +20,8 @@
           <td >{{ account.email }}</td>
           <td>{{ account.name }}</td>
           <td>
-            <button data-module="account-request-manage" data-module-action="approve" data-module-href="account_requests_management" data-module-id="{{ account.id }}" class="btn btn-success">Approve</button>
-            <button data-module="account-request-manage" data-module-action="forbid" data-module-href="account_requests_management" data-module-id="{{ account.id }}" class="btn btn-info">Reject</button>
+            <button data-module="account-request-manage" data-module-action="approve" data-module-href="account_requests_management" data-module-id="{{ account.id }}" data-module-name="{{ account.username }}" class="btn btn-success">Approve</button>
+            <button data-module="account-request-manage" data-module-action="forbid" data-module-href="account_requests_management" data-module-id="{{ account.id }}" data-module-name="{{ account.username }}" class="btn btn-info">Reject</button>
           </td>
         </tr>
       {% endfor %}

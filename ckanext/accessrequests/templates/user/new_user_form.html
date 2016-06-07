@@ -5,7 +5,17 @@
   {{ form.input("name", id="field-username", label=_("Username"), placeholder=_("username"), value=data.name, error=errors.name, classes=["control-medium"]) }}
   {{ form.input("fullname", id="field-fullname", label=_("Full Name"), placeholder=_("Joe Bloggs"), value=data.fullname, error=errors.fullname, classes=["control-medium"]) }}
   {{ form.input("email", id="field-email", label=_("Email"), type="email", placeholder=_("joe@example.com"), value=data.email, error=errors.email, classes=["control-medium"]) }}
-
+  <div class="control-group control-medium">
+    <label class="control-label">Organization</label>
+    <div class="controls ">
+      <select name="organization-for-request">
+      {% for org in organization %}
+        <option value="{{ org.id }}">{{ org.display_name }}</option>
+      {% endfor %}
+      </select>
+    </div>
+  </div>
+  {{ form.markdown('reason-to-access', id='field-reason-to-access', label=_('Reason for access'), placeholder=_('text')) }}
   {% if g.recaptcha_publickey %}
     {% snippet "user/snippets/recaptcha.html", public_key=g.recaptcha_publickey %}
   {% endif %}

@@ -12,11 +12,12 @@ this.ckan.module('account-request-manage', {
     var row = this.el.closest('tr');
     var action = this.options.action;
     var user_id = this.options.id;
+    var user_name = this.options.name;
     jQuery.ajax(
       {
         url : this.options.href,
         type: "POST",
-        data : {'action':action, 'id': user_id},
+        data : {'action':action, 'id': user_id, 'name': user_name},
         success:function(data, textStatus, jqXHR) 
         {   
 
