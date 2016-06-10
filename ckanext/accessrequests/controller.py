@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 
 abort = base.abort
 render = base.render
+_ = base._
 
 NotFound = logic.NotFound
 NotAuthorized = logic.NotAuthorized
@@ -46,7 +47,6 @@ class AccessRequestsController(UserController):
             'schema': self._new_form_to_db_schema(),
             'save': 'save' in request.params
         }
-
         if context['save'] and not data:
             return self._save_new_pending(context)
 
@@ -66,13 +66,11 @@ class AccessRequestsController(UserController):
 
         c.is_sysadmin = authz.is_sysadmin(c.user)
         c.form = render(self.new_user_form, extra_vars=vars)
-        log.info('I got here!')
         return render('user/new.html')
 
     def _save_new_pending(self, context):
         params = request.params
         password = str(binascii.b2a_hex(os.urandom(15)))
-        log.debug('password = %s' % password)
         data = dict(
             fullname = params['fullname'],
             name = params['name'],
@@ -114,6 +112,12 @@ class AccessRequestsController(UserController):
     def account_requests(self):
         ''' /ckan-admin/account_requests rendering
         '''
+        context = {'model': model,
+                   'user': c.user, 'auth_user_obj': c.userobj}
+        try:
+            logic.check_access('sysadmin', context, {})
+        except NotAuthorized:
+            base.abort(401, _('Need to be system administrator to administer'))
         accounts = [{
             'id':user.id,
             'name':user.display_name,
@@ -146,7 +150,6 @@ class AccessRequestsController(UserController):
             'model': model,
             'session': model.Session,
         } 
-        
         if action == 'forbid':
             # remove user, {{'user_email': user_email}}
             if org:
