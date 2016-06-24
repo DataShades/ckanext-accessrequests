@@ -15,7 +15,7 @@ def request_reset(context, data_dict=None):
         user_dict = get_action('user_show')(context, data_dict)
         if user_dict['state'] == 'pending':
             return {'success': False, 'msg': 'Only allowed users can get reset pass'}
-    return {'success': True, 'msg': 'All users can get reset pass'}
+    return {'success': True}
 
 
 class AccessRequestsPlugin(plugins.SingletonPlugin):
