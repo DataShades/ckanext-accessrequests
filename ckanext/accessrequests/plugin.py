@@ -14,7 +14,7 @@ def request_reset(context, data_dict=None):
         data_dict = {'id': request.params.get('user')}
         user_dict = get_action('user_show')(context, data_dict)
         if user_dict['state'] == 'pending':
-            return {'success': False, 'msg': 'Only allowed users can get reset pass'}
+            return {'success': False}
     return {'success': True}
 
 
