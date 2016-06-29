@@ -11,6 +11,7 @@ import logging
 import os
 import random
 from pylons import config
+from ckan.logic.validators import (object_id_validators, user_id_exists)
 
 #from model import UserTitle
 
@@ -84,18 +85,9 @@ class AccessRequestsController(UserController):
         organization = model.Group.get(data['organization_request'])
         try:
             user_dict = logic.get_action('user_create')(context, data)
-            context1 = {
-                'user': model.Session.query(model.User).filter_by(sysadmin=True).first().name,
-            }
-            user_data_dict = {
-                'id': data['organization_request'],
-                'username': data['name'],
-                'role': 'admin'
-            }
             msg = "New account's request:\nName: " + data['name'] + "\nEmail: " + data['email'] + "\nAgency: " + organization.display_name + "\nNotes: " + data['reason_to_access']
-            mailer.mail_recipient('Admin', config.get('ckan.site_email'), 'Account request', msg)
-            logic.get_action('organization_member_create')(context1, user_data_dict)
-            h.flash_success('The request have beem sent')
+            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request', msg)
+            h.flash_success('Your request for access to the {0} has been submitted.'.format(config.get('ckan.site_title')))
         except ValidationError, e:
             # return validation failures to the form
             errors = e.error_dict
@@ -148,16 +140,35 @@ class AccessRequestsController(UserController):
 
         context = {
             'model': model,
+            'user': c.user,
             'session': model.Session,
+        }
+        activity_create_context = {
+            'model': model,
+            'user': context2['user'],
+            'defer_commit': True,
+            'ignore_auth': True,
+            'session': model.Session
+        }
+        activity_dict = {
+            'user_id': c.userobj.id,
+            'object_id': user_id
         } 
         if action == 'forbid':
+            object_id_validators['reject new user'] = user_id_exists
+            activity_dict['activity_type'] = 'reject new user'
+            logic.get_action('activity_create')(activity_create_context, activity_dict)
             # remove user, {{'user_email': user_email}}
             if org:
                 logic.get_action('member_delete')(context, user_delete)  
             logic.get_action('user_delete')(context, {'id':user_id})
+
             mailer.mail_recipient(user_email['name'], user_email['email'], 'Account request', 'Your account request has been denied.')
 
         elif action == 'approve':
+            object_id_validators['approve new user'] = user_id_exists
+            activity_dict['activity_type'] = 'approve new user'
+            logic.get_action('activity_create')(activity_create_context, activity_dict)
             # Send invitation to complete registration
             try:
                 mailer.send_invite(user)
