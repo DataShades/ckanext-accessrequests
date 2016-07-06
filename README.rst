@@ -28,14 +28,12 @@
     :target: https://pypi.python.org/pypi/ckanext-accessrequests/
     :alt: License
 
-=============
+
+------------------------------------------------------------------------------------------
 ckanext-accessrequests
-=============
+------------------------------------------------------------------------------------------
 
-.. Put a description of your extension here:
-   What does it do? What features does it have?
-   Consider including some screenshots or embedding a video!
-
+A user who has an Admin role in the top-level organisation has able to access the list of requests and approve/reject requests (he can approve/reject users)
 
 ------------
 Requirements
@@ -72,16 +70,14 @@ To install ckanext-accessrequests:
      sudo service apache2 reload
 
 
----------------
-Config Settings
----------------
+Configuration
+=============
 
-Document any optional config settings here. For example::
+Set configuration options in ini file::
 
-    # The minimum number of hours to wait before re-checking a resource
-    # (optional, default: 24).
-    ckanext.accessrequests.some_setting = some_default_value
-
+  ckan.plugins = accessrequests
+  
+  ckanext.accessrequests.approver_email = admin email for receiving info about new users requests
 
 ------------------------
 Development Installation
@@ -110,9 +106,9 @@ coverage installed in your virtualenv (``pip install coverage``) then run::
     nosetests --nologcapture --with-pylons=test.ini --with-coverage --cover-package=ckanext.accessrequests --cover-inclusive --cover-erase --cover-tests
 
 
----------------------------------
+------------------------------------------------------------------------------------------
 Registering ckanext-accessrequests on PyPI
----------------------------------
+------------------------------------------------------------------------------------------
 
 ckanext-accessrequests should be availabe on PyPI as
 https://pypi.python.org/pypi/ckanext-accessrequests. If that link doesn't work, then
@@ -139,9 +135,9 @@ steps:
        git push --tags
 
 
-----------------------------------------
+------------------------------------------------------------------------------------------
 Releasing a New Version of ckanext-accessrequests
-----------------------------------------
+------------------------------------------------------------------------------------------
 
 ckanext-accessrequests is availabe on PyPI as https://pypi.python.org/pypi/ckanext-accessrequests.
 To publish a new version to PyPI follow these steps:

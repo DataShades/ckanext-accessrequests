@@ -3,8 +3,15 @@ import ckan.plugins.toolkit as toolkit
 from routes.mapper import SubMapper
 import ckan.model as model
 import ckan.logic as logic
-from ckan.common import c, request
+from ckan.common import c, request, _
+from ckan.lib.activity_streams import activity_stream_string_functions
 get_action = logic.get_action
+
+def activity_stream_string_reject_new_user(context, activity):
+    return _("{actor} reject new user {user}")
+
+def activity_stream_string_approve_new_user(context, activity):
+    return _("{actor} approve new user {user}")
 
 @toolkit.auth_allow_anonymous_access
 def request_reset(context, data_dict=None):
@@ -22,6 +29,9 @@ class AccessRequestsPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IRoutes)
     plugins.implements(plugins.IAuthFunctions)
+
+    activity_stream_string_functions['reject new user'] = activity_stream_string_reject_new_user
+    activity_stream_string_functions['approve new user'] = activity_stream_string_approve_new_user
 
     # IConfigurer
 
