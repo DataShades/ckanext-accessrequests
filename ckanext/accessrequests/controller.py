@@ -85,8 +85,15 @@ class AccessRequestsController(UserController):
         organization = model.Group.get(data['organization_request'])
         try:
             user_dict = logic.get_action('user_create')(context, data)
+            context1 = { 'user': model.Session.query(model.User).filter_by(sysadmin=True).first().name }
+            user_data_dict = {
+                'id': data['organization_request'],
+                'username': data['name'],
+                'role': 'member'
+            }
             msg = "New account's request:\nName: " + data['name'] + "\nEmail: " + data['email'] + "\nAgency: " + organization.display_name + "\nNotes: " + data['reason_to_access']
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request', msg)
+            logic.get_action('organization_member_create')(context1, user_data_dict)
             h.flash_success('Your request for access to the {0} has been submitted.'.format(config.get('ckan.site_title')))
         except ValidationError, e:
             # return validation failures to the form
@@ -100,16 +107,23 @@ class AccessRequestsController(UserController):
         # redirect to confirmation page/display success flash message
         h.redirect_to('/')
 
-
     def account_requests(self):
         ''' /ckan-admin/account_requests rendering
         '''
         context = {'model': model,
                    'user': c.user, 'auth_user_obj': c.userobj}
+        orgs = logic.get_action('organization_list_for_user')({'user': c.user}, {'permission': 'admin'})
+        user_is_admin_in_top_org = None
+        if orgs:
+            for org in orgs:
+                group = model.Group.get(org['id'])
+                if group.id == (group.get_parent_group_hierarchy(type='organization') or [group])[0].id:
+                    user_is_admin_in_top_org = True
+                    break
         try:
-            logic.check_access('sysadmin', context, {})
+            user_is_admin_in_top_org or logic.check_access('sysadmin', context, {})
         except NotAuthorized:
-            base.abort(401, _('Need to be system administrator to administer'))
+            base.abort(401, _('Need to be system administrator or admin in top-level org to administer'))
         accounts = [{
             'id':user.id,
             'name':user.display_name,
@@ -118,7 +132,6 @@ class AccessRequestsController(UserController):
         } for user in all_account_requests()]
         return render('admin/account_requests.html', {'accounts': accounts})
 
-
     def account_requests_management(self):
         ''' Approve or reject an account request
         '''
@@ -126,11 +139,11 @@ class AccessRequestsController(UserController):
         user_id = request.params['id']
         user_name = request.params['name']
         user = model.User.get(user_id)
-        user_email = logic.get_action('user_show')({},{'id': user_id})
-        context2 = {
-            'user': user_name
-        }
-        org = logic.get_action('organization_list_for_user')(context2, {'permission': 'read'})
+        #user_email = logic.get_action('user_show')({},{'id': user_id})
+        #log.info('user_email = %s', user_email)
+        context1 = { 'user': model.Session.query(model.User).filter_by(sysadmin=True).first().name }
+        org = logic.get_action('organization_list_for_user')({'user': user_name}, {'permission': 'read'})
+
         if org:
             user_delete = {
                 'id': org[0]['name'],
@@ -145,7 +158,7 @@ class AccessRequestsController(UserController):
         }
         activity_create_context = {
             'model': model,
-            'user': context2['user'],
+            'user': user_name,
             'defer_commit': True,
             'ignore_auth': True,
             'session': model.Session
@@ -160,10 +173,10 @@ class AccessRequestsController(UserController):
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # remove user, {{'user_email': user_email}}
             if org:
-                logic.get_action('member_delete')(context, user_delete)  
-            logic.get_action('user_delete')(context, {'id':user_id})
+                logic.get_action('member_delete')(context1, user_delete)  
+            logic.get_action('user_delete')(context1, {'id':user_id})
 
-            mailer.mail_recipient(user_email['name'], user_email['email'], 'Account request', 'Your account request has been denied.')
+            mailer.mail_recipient(user.name, user.email, 'Account request', 'Your account request has been denied.')
 
         elif action == 'approve':
             object_id_validators['approve new user'] = user_id_exists
