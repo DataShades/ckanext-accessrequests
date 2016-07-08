@@ -30,8 +30,6 @@ class AccessRequestsPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IRoutes)
     plugins.implements(plugins.IAuthFunctions)
 
-    activity_stream_string_functions['reject new user'] = activity_stream_string_reject_new_user
-    activity_stream_string_functions['approve new user'] = activity_stream_string_approve_new_user
 
     # IConfigurer
 
@@ -39,6 +37,8 @@ class AccessRequestsPlugin(plugins.SingletonPlugin):
         toolkit.add_template_directory(config_, 'templates')
         toolkit.add_public_directory(config_, 'public')
         toolkit.add_resource('fanstatic', 'accessrequests')
+        activity_stream_string_functions['reject new user'] = activity_stream_string_reject_new_user
+        activity_stream_string_functions['approve new user'] = activity_stream_string_approve_new_user
 
     def before_map(self, map):
         with SubMapper(map,
