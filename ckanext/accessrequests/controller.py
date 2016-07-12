@@ -1,4 +1,4 @@
-from ckan.common import c, response, request
+from ckan.common import c, response, request, g
 from ckan.controllers.user import UserController
 import binascii
 import ckan.authz as authz
@@ -91,7 +91,7 @@ class AccessRequestsController(UserController):
                 'username': data['name'],
                 'role': 'member'
             }
-            msg = "New account's request:\nName: " + data['name'] + "\nEmail: " + data['email'] + "\nAgency: " + organization.display_name + "\nNotes: " + data['reason_to_access']
+            msg = "Dear Admin,\n\nA request for a new user account has been submitted:\nUsername: " + data['name'] + "\nName: " + data['fullname'] + "\nEmail: " + data['email'] + "\nOrganisation: " + organization.display_name + "\nReason for access: " + data['reason_to_access'] + "\n\nThis request can be approved or rejected at " + g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests')
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request', msg)
             logic.get_action('organization_member_create')(context1, user_data_dict)
             h.flash_success('Your request for access to the {0} has been submitted.'.format(config.get('ckan.site_title')))
@@ -106,7 +106,7 @@ class AccessRequestsController(UserController):
  
         # redirect to confirmation page/display success flash message
         h.redirect_to('/')
-
+        
     def account_requests(self):
         ''' /ckan-admin/account_requests rendering
         '''
@@ -140,7 +140,6 @@ class AccessRequestsController(UserController):
         user_name = request.params['name']
         user = model.User.get(user_id)
         #user_email = logic.get_action('user_show')({},{'id': user_id})
-        #log.info('user_email = %s', user_email)
         context1 = { 'user': model.Session.query(model.User).filter_by(sysadmin=True).first().name }
         org = logic.get_action('organization_list_for_user')({'user': user_name}, {'permission': 'read'})
 
@@ -169,7 +168,7 @@ class AccessRequestsController(UserController):
         } 
         if action == 'forbid':
             object_id_validators['reject new user'] = user_id_exists
-            activity_dict['activity_type'] = 'reject new user'
+            activity_dict['activity_type'] = 'rejected new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # remove user, {{'user_email': user_email}}
             if org:
@@ -180,7 +179,7 @@ class AccessRequestsController(UserController):
 
         elif action == 'approve':
             object_id_validators['approve new user'] = user_id_exists
-            activity_dict['activity_type'] = 'approve new user'
+            activity_dict['activity_type'] = 'approved new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # Send invitation to complete registration
             try:
