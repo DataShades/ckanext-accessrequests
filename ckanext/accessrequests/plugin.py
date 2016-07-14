@@ -8,10 +8,10 @@ from ckan.lib.activity_streams import activity_stream_string_functions
 get_action = logic.get_action
 
 def activity_stream_string_reject_new_user(context, activity):
-    return _("{actor} reject new user {user}")
+    return _("{actor} rejected new user {user}")
 
 def activity_stream_string_approve_new_user(context, activity):
-    return _("{actor} approve new user {user}")
+    return _("{actor} approved new user {user}")
 
 @toolkit.auth_allow_anonymous_access
 def request_reset(context, data_dict=None):
@@ -37,8 +37,8 @@ class AccessRequestsPlugin(plugins.SingletonPlugin):
         toolkit.add_template_directory(config_, 'templates')
         toolkit.add_public_directory(config_, 'public')
         toolkit.add_resource('fanstatic', 'accessrequests')
-        activity_stream_string_functions['reject new user'] = activity_stream_string_reject_new_user
-        activity_stream_string_functions['approve new user'] = activity_stream_string_approve_new_user
+        activity_stream_string_functions['rejected new user'] = activity_stream_string_reject_new_user
+        activity_stream_string_functions['approved new user'] = activity_stream_string_approve_new_user
 
     def before_map(self, map):
         with SubMapper(map,
