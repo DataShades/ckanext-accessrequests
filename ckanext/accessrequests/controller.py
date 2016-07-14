@@ -86,14 +86,8 @@ class AccessRequestsController(UserController):
         try:
             user_dict = logic.get_action('user_create')(context, data)
             context1 = { 'user': model.Session.query(model.User).filter_by(sysadmin=True).first().name }
-            user_data_dict = {
-                'id': data['organization_request'],
-                'username': data['name'],
-                'role': 'member'
-            }
             msg = "Dear Admin,\n\nA request for a new user account has been submitted:\nUsername: " + data['name'] + "\nName: " + data['fullname'] + "\nEmail: " + data['email'] + "\nOrganisation: " + organization.display_name + "\nReason for access: " + data['reason_to_access'] + "\n\nThis request can be approved or rejected at " + g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests')
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request', msg)
-            logic.get_action('organization_member_create')(context1, user_data_dict)
             h.flash_success('Your request for access to the {0} has been submitted.'.format(config.get('ckan.site_title')))
         except ValidationError, e:
             # return validation failures to the form
@@ -167,18 +161,17 @@ class AccessRequestsController(UserController):
             'object_id': user_id
         } 
         if action == 'forbid':
-            object_id_validators['reject new user'] = user_id_exists
+            object_id_validators['rejected new user'] = user_id_exists
             activity_dict['activity_type'] = 'rejected new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # remove user, {{'user_email': user_email}}
-            if org:
-                logic.get_action('member_delete')(context1, user_delete)  
+
             logic.get_action('user_delete')(context1, {'id':user_id})
 
             mailer.mail_recipient(user.name, user.email, 'Account request', 'Your account request has been denied.')
 
         elif action == 'approve':
-            object_id_validators['approve new user'] = user_id_exists
+            object_id_validators['approved new user'] = user_id_exists
             activity_dict['activity_type'] = 'approved new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # Send invitation to complete registration
