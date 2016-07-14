@@ -161,8 +161,8 @@ class AccessRequestsController(UserController):
             'object_id': user_id
         } 
         if action == 'forbid':
-            object_id_validators['rejected new user'] = user_id_exists
-            activity_dict['activity_type'] = 'rejected new user'
+            object_id_validators['reject new user'] = user_id_exists
+            activity_dict['activity_type'] = 'reject new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # remove user, {{'user_email': user_email}}
 
@@ -171,8 +171,8 @@ class AccessRequestsController(UserController):
             mailer.mail_recipient(user.name, user.email, 'Account request', 'Your account request has been denied.')
 
         elif action == 'approve':
-            object_id_validators['approved new user'] = user_id_exists
-            activity_dict['activity_type'] = 'approved new user'
+            object_id_validators['approve new user'] = user_id_exists
+            activity_dict['activity_type'] = 'approve new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # Send invitation to complete registration
             try:
