@@ -6,12 +6,33 @@ import ckan.logic as logic
 from ckan.common import c, request, _
 from ckan.lib.activity_streams import activity_stream_string_functions
 get_action = logic.get_action
+import ckan.authz as authz
+import logging
+log = logging.getLogger(__name__)
+import ckan.lib.helpers as h
 
 def activity_stream_string_reject_new_user(context, activity):
     return _("{actor} rejected new user {user}")
 
 def activity_stream_string_approve_new_user(context, activity):
     return _("{actor} approved new user {user}")
+
+def check_access_account_requests():
+  """
+  :param context:
+  :return: True if user is sysadmin or admin in top level org
+  """
+  orgs = logic.get_action('organization_list_for_user')({'user': c.user}, {'permission': 'admin'})
+  user_is_admin_in_top_org = None
+  log.info('sysadmin = %s', h.check_access('sysadmin'))
+  if orgs:
+    for org in orgs:
+      group = model.Group.get(org['id'])
+      if group.id == (group.get_parent_group_hierarchy(type='organization') or [group])[0].id:
+        user_is_admin_in_top_org = True
+        break
+
+  return True if user_is_admin_in_top_org or h.check_access('sysadmin') else False
 
 @toolkit.auth_allow_anonymous_access
 def request_reset(context, data_dict=None):
@@ -29,6 +50,7 @@ class AccessRequestsPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IRoutes)
     plugins.implements(plugins.IAuthFunctions)
+    plugins.implements(plugins.ITemplateHelpers)
 
 
     # IConfigurer
@@ -44,13 +66,13 @@ class AccessRequestsPlugin(plugins.SingletonPlugin):
         with SubMapper(map,
                        controller='ckanext.accessrequests.controller:AccessRequestsController') as m:
             m.connect('account_requests',
-                      '/admin/account_requests',
+                      '/user/account_requests',
                       action='account_requests')
             m.connect('request_account',
                       '/user/register',
                       action='request_account')
             m.connect('account_requests_management',
-                      '/admin/account_requests_management',
+                      '/user/account_requests_management',
                       action='account_requests_management')
         return map
 
@@ -59,6 +81,9 @@ class AccessRequestsPlugin(plugins.SingletonPlugin):
 
     def get_auth_functions(self):
         return {'request_reset': request_reset}
+
+    def get_helpers(self):
+      return {'check_access_account_requests': check_access_account_requests}
 
 
 
