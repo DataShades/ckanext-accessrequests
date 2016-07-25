@@ -6,9 +6,6 @@ import ckan.logic as logic
 from ckan.common import c, request, _
 from ckan.lib.activity_streams import activity_stream_string_functions
 get_action = logic.get_action
-import ckan.authz as authz
-import logging
-log = logging.getLogger(__name__)
 import ckan.lib.helpers as h
 
 def activity_stream_string_reject_new_user(context, activity):
@@ -24,7 +21,6 @@ def check_access_account_requests():
   """
   orgs = logic.get_action('organization_list_for_user')({'user': c.user}, {'permission': 'admin'})
   user_is_admin_in_top_org = None
-  log.info('sysadmin = %s', h.check_access('sysadmin'))
   if orgs:
     for org in orgs:
       group = model.Group.get(org['id'])
