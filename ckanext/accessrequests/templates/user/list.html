@@ -12,7 +12,7 @@
     <header class="module-content page-header">
       <ul class="nav nav-tabs">
         {% block content_primary_nav %}
-          {% set has_access = h.check_access_account_requests() %}
+          {% set has_access = h.check_access('check_access_account_requests') %}
           {{ h.build_nav_icon('user_index', _('List users')) }}
           {% if has_access %}
             {{ h.build_nav_icon('account_requests', _('Account requests')) }}

@@ -3,6 +3,10 @@
 
 {% block subtitle %}{{ _('Account requests') }}{% endblock %}
 
+{% block breadcrumb_content %}
+  <li class="active">{{ h.nav_link(_('Account requests'), controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests') }}</li>
+{% endblock %}
+
 {% block primary_content %}
   <article class="module">
   {% block page_header %}

@@ -105,8 +105,13 @@ class AccessRequestsController(UserController):
     def account_requests(self):
         ''' /ckan-admin/account_requests rendering
         '''
-        log.info('access = %s', check_access_account_requests())
-        if not check_access_account_requests():
+        context = {
+            'model': model,
+            'user': c.user,
+            'auth_user_obj': c.userobj,
+        }
+        has_access = check_access_account_requests(context)
+        if not has_access['success']:
             base.abort(401, _('Need to be system administrator or admin in top-level org to administer'))
         accounts = [{
             'id': user.id,
