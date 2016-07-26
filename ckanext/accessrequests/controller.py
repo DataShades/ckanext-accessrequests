@@ -134,7 +134,7 @@ class AccessRequestsController(UserController):
         user_name = request.params['name']
         user = model.User.get(user_id)
         #user_email = logic.get_action('user_show')({},{'id': user_id})
-        context1 = { 'user': model.Session.query(model.User).filter_by(sysadmin=True).first().name }
+        context1 = { 'user': model.Session.query(model.User).filter_by(sysadmin=True,state='active').first().name }
         org = logic.get_action('organization_list_for_user')({'user': user_name}, {'permission': 'read'})
 
         if org:
