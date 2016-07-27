@@ -8,11 +8,21 @@ from ckan.lib.activity_streams import activity_stream_string_functions
 get_action = logic.get_action
 import ckan.lib.helpers as h
 
+
 def activity_stream_string_reject_new_user(context, activity):
     return _("{actor} rejected new user {user}")
 
 def activity_stream_string_approve_new_user(context, activity):
     return _("{actor} approved new user {user}")
+
+def user_delete(context, data_dict=None):
+  """
+  :param context:
+  :return: True if user is sysadmin or admin in top level org
+  """
+  has_access = check_access_account_requests(context)
+  return {'success': True if has_access['success'] else False}
+
 
 def check_access_account_requests(context, data_dict=None):
   """
@@ -77,7 +87,8 @@ class AccessRequestsPlugin(plugins.SingletonPlugin):
 
     def get_auth_functions(self):
         return {'request_reset': request_reset,
-                'check_access_account_requests': check_access_account_requests}
+                'check_access_account_requests': check_access_account_requests,
+                'user_delete': user_delete}
 
 
 

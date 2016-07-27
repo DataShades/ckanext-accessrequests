@@ -84,9 +84,9 @@ class AccessRequestsController(UserController):
             reason_to_access = params['reason-to-access']
             )
         organization = model.Group.get(data['organization_request'])
+        log.info('context = %s', context)
         try:
             user_dict = logic.get_action('user_create')(context, data)
-            context1 = { 'user': model.Session.query(model.User).filter_by(sysadmin=True).first().name }
             msg = "Dear Admin,\n\nA request for a new user account has been submitted:\nUsername: " + data['name'] + "\nName: " + data['fullname'] + "\nEmail: " + data['email'] + "\nOrganisation: " + organization.display_name + "\nReason for access: " + data['reason_to_access'] + "\n\nThis request can be approved or rejected at " + g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests')
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request', msg)
             h.flash_success('Your request for access to the {0} has been submitted.'.format(config.get('ckan.site_title')))
@@ -128,8 +128,6 @@ class AccessRequestsController(UserController):
         user_id = request.params['id']
         user_name = request.params['name']
         user = model.User.get(user_id)
-        #user_email = logic.get_action('user_show')({},{'id': user_id})
-        context1 = { 'user': model.Session.query(model.User).filter_by(sysadmin=True,state='active').first().name }
         org = logic.get_action('organization_list_for_user')({'user': user_name}, {'permission': 'read'})
 
         if org:
@@ -161,7 +159,7 @@ class AccessRequestsController(UserController):
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # remove user, {{'user_email': user_email}}
 
-            logic.get_action('user_delete')(context1, {'id':user_id})
+            logic.get_action('user_delete')(context, {'id': user_id})
 
             mailer.mail_recipient(user.name, user.email, 'Account request', 'Your account request has been denied.')
 
