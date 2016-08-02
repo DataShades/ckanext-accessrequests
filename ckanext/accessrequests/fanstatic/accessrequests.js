@@ -22,9 +22,9 @@ this.ckan.module('account-request-manage', {
         {
 
           if (action=='approve'){
-            jQuery('.btn').closest('td').html('Approved. Notification has been sent to the user');
+            jQuery('.btn', row).closest('td').html('Approved. Notification has been sent to the user');
           } else {
-            jQuery('.btn').closest('td').html('Rejected. Notification has been sent to the user');
+            jQuery('.btn', row).closest('td').html('Rejected. Notification has been sent to the user');
           }
         },
         error: function(jqXHR, textStatus, errorThrown)
