@@ -33,6 +33,11 @@ def all_account_requests():
     # TODO: stop this returning invited users also
     return model.Session.query(model.User).filter(model.User.state=='pending').all()
 
+def not_approved(user_id):
+    '''Return a True if user not approved
+    '''
+    return True if not model.Session.query(model.Activity).filter(model.Activity.activity_type=='approve new user').filter(model.Activity.object_id==user_id).all() else False
+
 class AccessRequestsController(UserController):
 
     def request_account(self, data=None, errors=None, error_summary=None):
@@ -55,7 +60,7 @@ class AccessRequestsController(UserController):
         if c.user and not data:
             # Don't offer the registration form if already logged in
             return render('user/logout_first.html')
-        
+
         data = data or {}
         errors = errors or {}
         error_summary = error_summary or {}
@@ -98,10 +103,10 @@ class AccessRequestsController(UserController):
 
         # TODO: turn into a template
         # msg = "New account's request:\nUsername: {name}\nEmail: {email}\nAgency: {agency}\nRole: {role}\nNotes: {notes}".format(**params)
- 
+
         # redirect to confirmation page/display success flash message
         h.redirect_to('/')
-        
+
     def account_requests(self):
         ''' /ckan-admin/account_requests rendering
         '''
@@ -118,7 +123,7 @@ class AccessRequestsController(UserController):
             'name': user.display_name,
             'username': user.name,
             'email': user.email,
-        } for user in all_account_requests()]
+        } for user in all_account_requests() if not_approved(user.id)]
         return render('user/account_requests.html', {'accounts': accounts})
 
     def account_requests_management(self):
@@ -154,7 +159,7 @@ class AccessRequestsController(UserController):
         activity_dict = {
             'user_id': c.userobj.id,
             'object_id': user_id
-        } 
+        }
         if action == 'forbid':
             object_id_validators['reject new user'] = user_id_exists
             activity_dict['activity_type'] = 'reject new user'
@@ -164,12 +169,14 @@ class AccessRequestsController(UserController):
             logic.get_action('user_delete')(context1, {'id':user_id})
 
             mailer.mail_recipient(user.name, user.email, 'Account request', 'Your account request has been denied.')
+            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', 'You have been rejected new user ' + str(user.name))
 
         elif action == 'approve':
             object_id_validators['approve new user'] = user_id_exists
             activity_dict['activity_type'] = 'approve new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # Send invitation to complete registration
+            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', 'You have been approved new user ' + str(user.name))
             try:
                 mailer.send_invite(user)
             except Exception as e:
