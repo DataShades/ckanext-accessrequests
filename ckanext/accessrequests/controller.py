@@ -12,6 +12,7 @@ import os
 import random
 from pylons import config
 from ckan.logic.validators import (object_id_validators, user_id_exists)
+from plugin import check_access_account_requests
 
 #from model import UserTitle
 
@@ -104,27 +105,21 @@ class AccessRequestsController(UserController):
     def account_requests(self):
         ''' /ckan-admin/account_requests rendering
         '''
-        context = {'model': model,
-                   'user': c.user, 'auth_user_obj': c.userobj}
-        orgs = logic.get_action('organization_list_for_user')({'user': c.user}, {'permission': 'admin'})
-        user_is_admin_in_top_org = None
-        if orgs:
-            for org in orgs:
-                group = model.Group.get(org['id'])
-                if group.id == (group.get_parent_group_hierarchy(type='organization') or [group])[0].id:
-                    user_is_admin_in_top_org = True
-                    break
-        try:
-            user_is_admin_in_top_org or logic.check_access('sysadmin', context, {})
-        except NotAuthorized:
+        context = {
+            'model': model,
+            'user': c.user,
+            'auth_user_obj': c.userobj,
+        }
+        has_access = check_access_account_requests(context)
+        if not has_access['success']:
             base.abort(401, _('Need to be system administrator or admin in top-level org to administer'))
         accounts = [{
-            'id':user.id,
-            'name':user.display_name,
+            'id': user.id,
+            'name': user.display_name,
             'username': user.name,
             'email': user.email,
         } for user in all_account_requests()]
-        return render('admin/account_requests.html', {'accounts': accounts})
+        return render('user/account_requests.html', {'accounts': accounts})
 
     def account_requests_management(self):
         ''' Approve or reject an account request
@@ -182,4 +177,4 @@ class AccessRequestsController(UserController):
                 abort(500, _('Error: couldn''t email invite to user'))
 
         response.status = 200
-        return render('admin/account_requests_management.html')
+        return render('user/account_requests_management.html')
