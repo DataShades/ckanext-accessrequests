@@ -55,7 +55,7 @@ class AccessRequestsController(UserController):
         if c.user and not data:
             # Don't offer the registration form if already logged in
             return render('user/logout_first.html')
-        
+
         data = data or {}
         errors = errors or {}
         error_summary = error_summary or {}
@@ -84,7 +84,7 @@ class AccessRequestsController(UserController):
             reason_to_access = params['reason-to-access']
             )
         organization = model.Group.get(data['organization_request'])
-        log.info('context = %s', context)
+
         try:
             user_dict = logic.get_action('user_create')(context, data)
             msg = "Dear Admin,\n\nA request for a new user account has been submitted:\nUsername: " + data['name'] + "\nName: " + data['fullname'] + "\nEmail: " + data['email'] + "\nOrganisation: " + organization.display_name + "\nReason for access: " + data['reason_to_access'] + "\n\nThis request can be approved or rejected at " + g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests')
@@ -98,10 +98,10 @@ class AccessRequestsController(UserController):
 
         # TODO: turn into a template
         # msg = "New account's request:\nUsername: {name}\nEmail: {email}\nAgency: {agency}\nRole: {role}\nNotes: {notes}".format(**params)
- 
+
         # redirect to confirmation page/display success flash message
         h.redirect_to('/')
-        
+
     def account_requests(self):
         ''' /ckan-admin/account_requests rendering
         '''
@@ -152,7 +152,7 @@ class AccessRequestsController(UserController):
         activity_dict = {
             'user_id': c.userobj.id,
             'object_id': user_id
-        } 
+        }
         if action == 'forbid':
             object_id_validators['reject new user'] = user_id_exists
             activity_dict['activity_type'] = 'reject new user'
