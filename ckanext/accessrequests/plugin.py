@@ -7,6 +7,8 @@ from ckan.common import c, request, _
 from ckan.lib.activity_streams import activity_stream_string_functions
 get_action = logic.get_action
 import ckan.lib.helpers as h
+import ckan.authz as authz
+
 
 def activity_stream_string_reject_new_user(context, activity):
     return _("{actor} rejected new user {user}")
@@ -14,20 +16,27 @@ def activity_stream_string_reject_new_user(context, activity):
 def activity_stream_string_approve_new_user(context, activity):
     return _("{actor} approved new user {user}")
 
+def user_delete(context, data_dict=None):
+  """
+  :param context:
+  :return: True if user is sysadmin or admin in top level org
+  """
+  return check_access_account_requests(context)
+
+
 def check_access_account_requests(context, data_dict=None):
   """
   :param context:
   :return: True if user is sysadmin or admin in top level org
   """
   user = context.get('user')
-  orgs = logic.get_action('organization_list_for_user')({'user': user}, {'permission': 'admin'})
+  orgs = model.Group.get_top_level_groups(type='organization')
   user_is_admin_in_top_org = None
   if orgs:
     for org in orgs:
-      group = model.Group.get(org['id'])
-      if group.id == (group.get_parent_group_hierarchy(type='organization') or [group])[0].id:
-        user_is_admin_in_top_org = True
-        break
+        if authz.has_user_permission_for_group_or_org(org.id, user, 'admin'):
+            user_is_admin_in_top_org = True
+            break
 
   return {'success': True if user_is_admin_in_top_org or h.check_access('sysadmin') else False}
 
@@ -77,8 +86,5 @@ class AccessRequestsPlugin(plugins.SingletonPlugin):
 
     def get_auth_functions(self):
         return {'request_reset': request_reset,
-                'check_access_account_requests': check_access_account_requests}
-
-
-
-
+                'check_access_account_requests': check_access_account_requests,
+                'user_delete': user_delete}
