@@ -33,10 +33,14 @@ def all_account_requests():
     # TODO: stop this returning invited users also
     return model.Session.query(model.User).filter(model.User.state=='pending').all()
 
-def not_approved(user_id):
+def not_approved():
     '''Return a True if user not approved
     '''
-    return True if not model.Session.query(model.Activity).filter(model.Activity.activity_type=='approve new user').filter(model.Activity.object_id==user_id).all() else False
+    approved_users = model.Session.query(model.Activity).filter(model.Activity.activity_type=='approve new user').all()
+    approved_users_id = []
+    for user in approved_users:
+        approved_users_id.append(user.object_id)
+    return approved_users_id
 
 class AccessRequestsController(UserController):
 
@@ -118,12 +122,13 @@ class AccessRequestsController(UserController):
         has_access = check_access_account_requests(context)
         if not has_access['success']:
             base.abort(401, _('Need to be system administrator or admin in top-level org to administer'))
+        not_approved_users = not_approved()
         accounts = [{
             'id': user.id,
             'name': user.display_name,
             'username': user.name,
             'email': user.email,
-        } for user in all_account_requests() if not_approved(user.id)]
+        } for user in all_account_requests() if user.id not in not_approved_users]
         return render('user/account_requests.html', {'accounts': accounts})
 
     def account_requests_management(self):
