@@ -12,6 +12,7 @@ import os
 import random
 from pylons import config
 from ckan.logic.validators import (object_id_validators, user_id_exists)
+from plugin import check_access_account_requests
 
 #from model import UserTitle
 
@@ -31,6 +32,15 @@ def all_account_requests():
     '''
     # TODO: stop this returning invited users also
     return model.Session.query(model.User).filter(model.User.state=='pending').all()
+
+def not_approved():
+    '''Return a True if user not approved
+    '''
+    approved_users = model.Session.query(model.Activity).filter(model.Activity.activity_type=='approve new user').all()
+    approved_users_id = []
+    for user in approved_users:
+        approved_users_id.append(user.object_id)
+    return approved_users_id
 
 class AccessRequestsController(UserController):
 
@@ -54,7 +64,7 @@ class AccessRequestsController(UserController):
         if c.user and not data:
             # Don't offer the registration form if already logged in
             return render('user/logout_first.html')
-        
+
         data = data or {}
         errors = errors or {}
         error_summary = error_summary or {}
@@ -97,34 +107,29 @@ class AccessRequestsController(UserController):
 
         # TODO: turn into a template
         # msg = "New account's request:\nUsername: {name}\nEmail: {email}\nAgency: {agency}\nRole: {role}\nNotes: {notes}".format(**params)
- 
+
         # redirect to confirmation page/display success flash message
         h.redirect_to('/')
-        
+
     def account_requests(self):
         ''' /ckan-admin/account_requests rendering
         '''
-        context = {'model': model,
-                   'user': c.user, 'auth_user_obj': c.userobj}
-        orgs = logic.get_action('organization_list_for_user')({'user': c.user}, {'permission': 'admin'})
-        user_is_admin_in_top_org = None
-        if orgs:
-            for org in orgs:
-                group = model.Group.get(org['id'])
-                if group.id == (group.get_parent_group_hierarchy(type='organization') or [group])[0].id:
-                    user_is_admin_in_top_org = True
-                    break
-        try:
-            user_is_admin_in_top_org or logic.check_access('sysadmin', context, {})
-        except NotAuthorized:
+        context = {
+            'model': model,
+            'user': c.user,
+            'auth_user_obj': c.userobj,
+        }
+        has_access = check_access_account_requests(context)
+        if not has_access['success']:
             base.abort(401, _('Need to be system administrator or admin in top-level org to administer'))
+        not_approved_users = not_approved()
         accounts = [{
-            'id':user.id,
-            'name':user.display_name,
+            'id': user.id,
+            'name': user.display_name,
             'username': user.name,
             'email': user.email,
-        } for user in all_account_requests()]
-        return render('admin/account_requests.html', {'accounts': accounts})
+        } for user in all_account_requests() if user.id not in not_approved_users]
+        return render('user/account_requests.html', {'accounts': accounts})
 
     def account_requests_management(self):
         ''' Approve or reject an account request
@@ -159,7 +164,7 @@ class AccessRequestsController(UserController):
         activity_dict = {
             'user_id': c.userobj.id,
             'object_id': user_id
-        } 
+        }
         if action == 'forbid':
             object_id_validators['reject new user'] = user_id_exists
             activity_dict['activity_type'] = 'reject new user'
@@ -169,12 +174,14 @@ class AccessRequestsController(UserController):
             logic.get_action('user_delete')(context1, {'id':user_id})
 
             mailer.mail_recipient(user.name, user.email, 'Account request', 'Your account request has been denied.')
+            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', 'You have been rejected new user ' + str(user.name))
 
         elif action == 'approve':
             object_id_validators['approve new user'] = user_id_exists
             activity_dict['activity_type'] = 'approve new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # Send invitation to complete registration
+            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', 'You have been approved new user ' + str(user.name))
             try:
                 mailer.send_invite(user)
             except Exception as e:
@@ -182,4 +189,4 @@ class AccessRequestsController(UserController):
                 abort(500, _('Error: couldn''t email invite to user'))
 
         response.status = 200
-        return render('admin/account_requests_management.html')
+        return render('user/account_requests_management.html')
