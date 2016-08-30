@@ -18,17 +18,16 @@ this.ckan.module('account-request-manage', {
         url : this.options.href,
         type: "POST",
         data : {'action':action, 'id': user_id, 'name': user_name},
-        success:function(data, textStatus, jqXHR) 
-        {   
+        success:function(data, textStatus, jqXHR)
+        {
 
           if (action=='approve'){
-            row.addClass('management-approve');
-            jQuery('.btn', row).attr('disabled', 'disabled').removeClass('btn-info btn-success');
+            jQuery('.btn', row).closest('td').html('Approved. Notification has been sent to the user');
           } else {
-            row.remove();
+            jQuery('.btn', row).closest('td').html('Rejected. Notification has been sent to the user');
           }
         },
-        error: function(jqXHR, textStatus, errorThrown) 
+        error: function(jqXHR, textStatus, errorThrown)
         {
             row.addClass('management-error');
             self.el.popover({ content: 'Error', placement: 'top'}).popover('show');
