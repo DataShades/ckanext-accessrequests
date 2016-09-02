@@ -33,6 +33,15 @@ def all_account_requests():
     # TODO: stop this returning invited users also
     return model.Session.query(model.User).filter(model.User.state=='pending').all()
 
+def not_approved():
+    '''Return a True if user not approved
+    '''
+    approved_users = model.Session.query(model.Activity).filter(model.Activity.activity_type=='approve new user').all()
+    approved_users_id = []
+    for user in approved_users:
+        approved_users_id.append(user.object_id)
+    return approved_users_id
+
 class AccessRequestsController(UserController):
 
     def request_account(self, data=None, errors=None, error_summary=None):
@@ -87,7 +96,7 @@ class AccessRequestsController(UserController):
 
         try:
             user_dict = logic.get_action('user_create')(context, data)
-            msg = "Dear Admin,\n\nA request for a new user account has been submitted:\nUsername: " + data['name'] + "\nName: " + data['fullname'] + "\nEmail: " + data['email'] + "\nOrganisation: " + organization.display_name + "\nReason for access: " + data['reason_to_access'] + "\n\nThis request can be approved or rejected at " + g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests')
+            msg = "A request for a new user account has been submitted:\nUsername: " + data['name'] + "\nName: " + data['fullname'] + "\nEmail: " + data['email'] + "\nOrganisation: " + organization.display_name + "\nReason for access: " + data['reason_to_access'] + "\n\nThis request can be approved or rejected at " + g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests')
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request', msg)
             h.flash_success('Your request for access to the {0} has been submitted.'.format(config.get('ckan.site_title')))
         except ValidationError, e:
@@ -113,12 +122,13 @@ class AccessRequestsController(UserController):
         has_access = check_access_account_requests(context)
         if not has_access['success']:
             base.abort(401, _('Need to be system administrator or admin in top-level org to administer'))
+        not_approved_users = not_approved()
         accounts = [{
             'id': user.id,
             'name': user.display_name,
             'username': user.name,
             'email': user.email,
-        } for user in all_account_requests()]
+        } for user in all_account_requests() if user.id not in not_approved_users]
         return render('user/account_requests.html', {'accounts': accounts})
 
     def account_requests_management(self):
@@ -159,15 +169,18 @@ class AccessRequestsController(UserController):
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # remove user, {{'user_email': user_email}}
 
-            logic.get_action('user_delete')(context, {'id': user_id})
-
-            mailer.mail_recipient(user.name, user.email, 'Account request', 'Your account request has been denied.')
-
+            logic.get_action('user_delete')(context, {'id':user_id})
+            msg = "Your account request for {0} has been rejected by {1}\n\nFor further clarification as to why your request has been rejected please contact the NSW Flood Data Portal ({2})".format(config.get('ckan.site_title'), c.userobj.fullname, config.get('ckanext.accessrequests.approver_email'))
+            mailer.mail_recipient(user.fullname, user.email, 'Account request', msg)
+            msg = "User account request for {0} has been rejected by {1}".format(user.fullname, c.userobj.fullname)
+            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', msg)
         elif action == 'approve':
             object_id_validators['approve new user'] = user_id_exists
             activity_dict['activity_type'] = 'approve new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # Send invitation to complete registration
+            msg = "User account request for {0} has been approved by {1}".format(user.fullname, c.userobj.fullname)
+            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', msg)
             try:
                 mailer.send_invite(user)
             except Exception as e:
