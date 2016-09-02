@@ -93,10 +93,10 @@ class AccessRequestsController(UserController):
             reason_to_access = params['reason-to-access']
             )
         organization = model.Group.get(data['organization_request'])
+
         try:
             user_dict = logic.get_action('user_create')(context, data)
-            context1 = { 'user': model.Session.query(model.User).filter_by(sysadmin=True).first().name }
-            msg = "Dear Admin,\n\nA request for a new user account has been submitted:\nUsername: " + data['name'] + "\nName: " + data['fullname'] + "\nEmail: " + data['email'] + "\nOrganisation: " + organization.display_name + "\nReason for access: " + data['reason_to_access'] + "\n\nThis request can be approved or rejected at " + g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests')
+            msg = "A request for a new user account has been submitted:\nUsername: " + data['name'] + "\nName: " + data['fullname'] + "\nEmail: " + data['email'] + "\nOrganisation: " + organization.display_name + "\nReason for access: " + data['reason_to_access'] + "\n\nThis request can be approved or rejected at " + g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests')
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request', msg)
             h.flash_success('Your request for access to the {0} has been submitted.'.format(config.get('ckan.site_title')))
         except ValidationError, e:
@@ -138,8 +138,6 @@ class AccessRequestsController(UserController):
         user_id = request.params['id']
         user_name = request.params['name']
         user = model.User.get(user_id)
-        #user_email = logic.get_action('user_show')({},{'id': user_id})
-        context1 = { 'user': model.Session.query(model.User).filter_by(sysadmin=True).first().name }
         org = logic.get_action('organization_list_for_user')({'user': user_name}, {'permission': 'read'})
 
         if org:
@@ -171,17 +169,18 @@ class AccessRequestsController(UserController):
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # remove user, {{'user_email': user_email}}
 
-            logic.get_action('user_delete')(context1, {'id':user_id})
-
-            mailer.mail_recipient(user.name, user.email, 'Account request', 'Your account request has been denied.')
-            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', 'You have been rejected new user ' + str(user.name))
-
+            logic.get_action('user_delete')(context, {'id':user_id})
+            msg = "Your account request for {0} has been rejected by {1}\n\nFor further clarification as to why your request has been rejected please contact the NSW Flood Data Portal ({2})".format(config.get('ckan.site_title'), c.userobj.fullname, config.get('ckanext.accessrequests.approver_email'))
+            mailer.mail_recipient(user.fullname, user.email, 'Account request', msg)
+            msg = "User account request for {0} has been rejected by {1}".format(user.fullname, c.userobj.fullname)
+            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', msg)
         elif action == 'approve':
             object_id_validators['approve new user'] = user_id_exists
             activity_dict['activity_type'] = 'approve new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             # Send invitation to complete registration
-            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', 'You have been approved new user ' + str(user.name))
+            msg = "User account request for {0} has been approved by {1}".format(user.fullname, c.userobj.fullname)
+            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', msg)
             try:
                 mailer.send_invite(user)
             except Exception as e:
