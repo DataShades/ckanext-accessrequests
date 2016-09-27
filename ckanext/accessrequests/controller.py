@@ -167,7 +167,7 @@ class AccessRequestsController(UserController):
             object_id_validators['reject new user'] = user_id_exists
             activity_dict['activity_type'] = 'reject new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
-            org = logic.get_action('organization_list_for_user')({'user': user_name}, {})
+            org = logic.get_action('organization_list_for_user')({'user': user_name}, {"permission": "read"})
             logic.get_action('organization_member_delete')(context, {"id": org[0]['id'], "username": user_name})
             logic.get_action('user_delete')(context, {'id':user_id})
             msg = "Your account request for {0} has been rejected by {1}\n\nFor further clarification as to why your request has been rejected please contact the NSW Flood Data Portal ({2})".format(config.get('ckan.site_title'), c.userobj.fullname, config.get('ckanext.accessrequests.approver_email'))
