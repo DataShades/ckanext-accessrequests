@@ -14,6 +14,7 @@ from pylons import config
 from ckan.logic.validators import (object_id_validators, user_id_exists)
 from plugin import check_access_account_requests
 import sqlalchemy
+import ckan.lib.captcha as captcha
 
 #from model import UserTitle
 
@@ -26,7 +27,9 @@ _ = base._
 NotFound = logic.NotFound
 NotAuthorized = logic.NotAuthorized
 ValidationError = logic.ValidationError
-
+CaptchaError = captcha.CaptchaError
+CaptchaError.error_dict = {}
+CaptchaError.error_summary = {}
 
 def all_account_requests():
     '''Return a list of all pending user accounts
@@ -83,6 +86,8 @@ class AccessRequestsController(UserController):
         return render('user/new.html')
 
     def _save_new_pending(self, context):
+        errors = {}
+        error_summary = {}
         params = request.params
         password = str(binascii.b2a_hex(os.urandom(15)))
         data = dict(
@@ -99,6 +104,7 @@ class AccessRequestsController(UserController):
         organization = model.Group.get(data['organization_request'])
         sys_admin = model.Session.query(model.User).filter(sqlalchemy.and_(model.User.sysadmin == True, model.User.state == 'active')).first().name
         try:
+            captcha.check_recaptcha(request)
             user_dict = logic.get_action('user_create')(context, data)
             org_member = logic.get_action('organization_member_create')({"user": sys_admin}, {
                                                                         "id": organization.id,
@@ -107,12 +113,15 @@ class AccessRequestsController(UserController):
             msg = "A request for a new user account has been submitted:\nUsername: " + data['name'] + "\nName: " + data['fullname'] + "\nEmail: " + data['email'] + "\nOrganisation: " + organization.display_name + "\nReason for access: " + data['reason_to_access'] + "\n\nThis request can be approved or rejected at " + g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests')
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request', msg)
             h.flash_success('Your request for access to the {0} has been submitted.'.format(config.get('ckan.site_title')))
-        except ValidationError, e:
+        except (ValidationError,CaptchaError), e:
             # return validation failures to the form
-            errors = e.error_dict
-            error_summary = e.error_summary
+            if e.error_dict:
+                errors = e.error_dict
+                error_summary = e.error_summary
+            errors['Captcha'] = [_(u'Bad Captcha. Please try again.')]
+            error_summary['Captcha'] = 'Bad Captcha. Please try again.'
             return self.request_account(data, errors, error_summary)
-
+                      
         # TODO: turn into a template
         # msg = "New account's request:\nUsername: {name}\nEmail: {email}\nAgency: {agency}\nRole: {role}\nNotes: {notes}".format(**params)
 
