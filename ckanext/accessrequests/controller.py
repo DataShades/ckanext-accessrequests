@@ -13,6 +13,8 @@ import random
 from pylons import config
 from ckan.logic.validators import (object_id_validators, user_id_exists)
 from plugin import check_access_account_requests
+import sqlalchemy
+import ckan.lib.captcha as captcha
 
 #from model import UserTitle
 
@@ -25,7 +27,9 @@ _ = base._
 NotFound = logic.NotFound
 NotAuthorized = logic.NotAuthorized
 ValidationError = logic.ValidationError
-
+CaptchaError = captcha.CaptchaError
+CaptchaError.error_dict = {}
+CaptchaError.error_summary = {}
 
 def all_account_requests():
     '''Return a list of all pending user accounts
@@ -41,6 +45,7 @@ def not_approved():
     for user in approved_users:
         approved_users_id.append(user.object_id)
     return approved_users_id
+
 
 class AccessRequestsController(UserController):
 
@@ -73,13 +78,16 @@ class AccessRequestsController(UserController):
         for org in organizations:
           organization.append(logic.get_action('organization_show')({},{'id': org}))
 
-        vars = {'data': data, 'errors': errors, 'error_summary': error_summary, 'organization': organization}
+        roles = logic.get_action('member_roles_list')(context, {'group_type': 'organization'})
+        vars = {'data': data, 'errors': errors, 'error_summary': error_summary, 'organization': organization, 'roles': roles}
 
         c.is_sysadmin = authz.is_sysadmin(c.user)
         c.form = render(self.new_user_form, extra_vars=vars)
         return render('user/new.html')
 
     def _save_new_pending(self, context):
+        errors = {}
+        error_summary = {}
         params = request.params
         password = str(binascii.b2a_hex(os.urandom(15)))
         data = dict(
@@ -90,21 +98,30 @@ class AccessRequestsController(UserController):
             state = model.State.PENDING,
             email = params['email'],
             organization_request = params['organization-for-request'],
-            reason_to_access = params['reason-to-access']
+            reason_to_access = params['reason-to-access'],
+            role = params['role']
             )
         organization = model.Group.get(data['organization_request'])
-
+        sys_admin = model.Session.query(model.User).filter(sqlalchemy.and_(model.User.sysadmin == True, model.User.state == 'active')).first().name
         try:
+            captcha.check_recaptcha(request)
             user_dict = logic.get_action('user_create')(context, data)
+            org_member = logic.get_action('organization_member_create')({"user": sys_admin}, {
+                                                                        "id": organization.id,
+                                                                        "username": user_dict['name'],
+                                                                        "role": data['role']})
             msg = "A request for a new user account has been submitted:\nUsername: " + data['name'] + "\nName: " + data['fullname'] + "\nEmail: " + data['email'] + "\nOrganisation: " + organization.display_name + "\nReason for access: " + data['reason_to_access'] + "\n\nThis request can be approved or rejected at " + g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests')
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request', msg)
             h.flash_success('Your request for access to the {0} has been submitted.'.format(config.get('ckan.site_title')))
-        except ValidationError, e:
+        except (ValidationError,CaptchaError), e:
             # return validation failures to the form
-            errors = e.error_dict
-            error_summary = e.error_summary
+            if e.error_dict:
+                errors = e.error_dict
+                error_summary = e.error_summary
+            errors['Captcha'] = [_(u'Bad Captcha. Please try again.')]
+            error_summary['Captcha'] = 'Bad Captcha. Please try again.'
             return self.request_account(data, errors, error_summary)
-
+                      
         # TODO: turn into a template
         # msg = "New account's request:\nUsername: {name}\nEmail: {email}\nAgency: {agency}\nRole: {role}\nNotes: {notes}".format(**params)
 
@@ -138,14 +155,6 @@ class AccessRequestsController(UserController):
         user_id = request.params['id']
         user_name = request.params['name']
         user = model.User.get(user_id)
-        org = logic.get_action('organization_list_for_user')({'user': user_name}, {'permission': 'read'})
-
-        if org:
-            user_delete = {
-                'id': org[0]['name'],
-                'object': user_name,
-                'object_type': 'user'
-            }
 
         context = {
             'model': model,
@@ -167,8 +176,8 @@ class AccessRequestsController(UserController):
             object_id_validators['reject new user'] = user_id_exists
             activity_dict['activity_type'] = 'reject new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
-            # remove user, {{'user_email': user_email}}
-
+            org = logic.get_action('organization_list_for_user')({'user': user_name}, {"permission": "read"})
+            logic.get_action('organization_member_delete')(context, {"id": org[0]['id'], "username": user_name})
             logic.get_action('user_delete')(context, {'id':user_id})
             msg = "Your account request for {0} has been rejected by {1}\n\nFor further clarification as to why your request has been rejected please contact the NSW Flood Data Portal ({2})".format(config.get('ckan.site_title'), c.userobj.fullname, config.get('ckanext.accessrequests.approver_email'))
             mailer.mail_recipient(user.fullname, user.email, 'Account request', msg)
