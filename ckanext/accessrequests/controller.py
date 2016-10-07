@@ -31,11 +31,49 @@ CaptchaError = captcha.CaptchaError
 CaptchaError.error_dict = {}
 CaptchaError.error_summary = {}
 
+def get_orgs_and_roles(context):
+    '''Return a list of orgs and roles
+    '''
+    organizations = logic.get_action('organization_list')({}, {})
+    organization = []
+    for org in organizations:
+      organization.append(logic.get_action('organization_show')({},{'id': org,
+                                                                    'include_extras': False,
+                                                                    'include_users': False,
+                                                                    'include_groups': False,
+                                                                    'include_tags': False,
+                                                                    'include_followers': False
+                                                                     }))
+    roles = logic.get_action('member_roles_list')(context, {'group_type': 'organization'})
+    return organization, roles
+
+def assign_user_to_org(user_name, user_org, user_role, context):
+    org = logic.get_action('organization_list_for_user')({'user': user_name}, {"permission": "read"})
+    sys_admin = model.Session.query(model.User).\
+                                    filter(sqlalchemy.and_(model.User.sysadmin == True, model.User.state == 'active')).\
+                                    first().name
+    if org and org[0]['name'] != user_org:
+        logic.get_action('organization_member_delete')(context, {"id": org[0]['id'], "username": user_name})
+    logic.get_action('organization_member_create')({"user": sys_admin}, {
+                                                    "id": user_org,
+                                                    "username": user_name,
+                                                    "role": user_role})
+    return org[0]['display_name'] if org else logic.get_action('organization_show')({},{'id': user_org,
+                                                                  'include_extras': False,
+                                                                  'include_users': False,
+                                                                  'include_groups': False,
+                                                                  'include_tags': False,
+                                                                  'include_followers': False
+                                                                   })['display_name']
+
 def all_account_requests():
     '''Return a list of all pending user accounts
     '''
     # TODO: stop this returning invited users also
-    return model.Session.query(model.User).filter(model.User.state=='pending').all()
+    return model.Session.query(model.User, model.Member).\
+                                 outerjoin(model.Member, model.Member.table_id == model.User.id).\
+                                 filter(model.User.state=='pending').\
+                                 all()
 
 def not_approved():
     '''Return a True if user not approved
@@ -73,12 +111,7 @@ class AccessRequestsController(UserController):
         data = data or {}
         errors = errors or {}
         error_summary = error_summary or {}
-        organizations = logic.get_action('organization_list')({}, {})
-        organization = []
-        for org in organizations:
-          organization.append(logic.get_action('organization_show')({},{'id': org}))
-
-        roles = logic.get_action('member_roles_list')(context, {'group_type': 'organization'})
+        organization, roles = get_orgs_and_roles(context)
         vars = {'data': data, 'errors': errors, 'error_summary': error_summary, 'organization': organization, 'roles': roles}
 
         c.is_sysadmin = authz.is_sysadmin(c.user)
@@ -121,7 +154,7 @@ class AccessRequestsController(UserController):
             errors['Captcha'] = [_(u'Bad Captcha. Please try again.')]
             error_summary['Captcha'] = 'Bad Captcha. Please try again.'
             return self.request_account(data, errors, error_summary)
-                      
+
         # TODO: turn into a template
         # msg = "New account's request:\nUsername: {name}\nEmail: {email}\nAgency: {agency}\nRole: {role}\nNotes: {notes}".format(**params)
 
@@ -136,6 +169,7 @@ class AccessRequestsController(UserController):
             'user': c.user,
             'auth_user_obj': c.userobj,
         }
+        organization, roles = get_orgs_and_roles(context)
         has_access = check_access_account_requests(context)
         if not has_access['success']:
             base.abort(401, _('Need to be system administrator or admin in top-level org to administer'))
@@ -145,8 +179,9 @@ class AccessRequestsController(UserController):
             'name': user.display_name,
             'username': user.name,
             'email': user.email,
-        } for user in all_account_requests() if user.id not in not_approved_users]
-        return render('user/account_requests.html', {'accounts': accounts})
+            'org': member,
+        } for user, member in all_account_requests() if user.id not in not_approved_users]
+        return render('user/account_requests.html', {'accounts': accounts, 'organization': organization, 'roles': roles})
 
     def account_requests_management(self):
         ''' Approve or reject an account request
@@ -177,18 +212,22 @@ class AccessRequestsController(UserController):
             activity_dict['activity_type'] = 'reject new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
             org = logic.get_action('organization_list_for_user')({'user': user_name}, {"permission": "read"})
-            logic.get_action('organization_member_delete')(context, {"id": org[0]['id'], "username": user_name})
+            if org:
+                logic.get_action('organization_member_delete')(context, {"id": org[0]['id'], "username": user_name})
             logic.get_action('user_delete')(context, {'id':user_id})
             msg = "Your account request for {0} has been rejected by {1}\n\nFor further clarification as to why your request has been rejected please contact the NSW Flood Data Portal ({2})".format(config.get('ckan.site_title'), c.userobj.fullname, config.get('ckanext.accessrequests.approver_email'))
             mailer.mail_recipient(user.fullname, user.email, 'Account request', msg)
-            msg = "User account request for {0} has been rejected by {1}".format(user.fullname, c.userobj.fullname)
+            msg = "User account request for {0} has been rejected by {1}".format(user.fullname or user_name, c.userobj.fullname)
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', msg)
         elif action == 'approve':
+            user_org = request.params['org']
+            user_role = request.params['role']
             object_id_validators['approve new user'] = user_id_exists
             activity_dict['activity_type'] = 'approve new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
+            org_display_name = assign_user_to_org(user_name, user_org, user_role, context)
             # Send invitation to complete registration
-            msg = "User account request for {0} has been approved by {1}".format(user.fullname, c.userobj.fullname)
+            msg = "User account request for {0} (Organization : {1}, Role: {2}) has been approved by {3}".format(user.fullname, org_display_name, user_role, c.userobj.fullname)
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', msg)
             try:
                 mailer.send_invite(user)

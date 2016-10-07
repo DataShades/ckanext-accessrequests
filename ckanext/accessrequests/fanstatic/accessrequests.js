@@ -13,11 +13,13 @@ this.ckan.module('account-request-manage', {
     var action = this.options.action;
     var user_id = this.options.id;
     var user_name = this.options.name;
+    var org = row.find('#organization-for-request').val();
+    var role = row.find('#organization-role').val();
     jQuery.ajax(
       {
         url : this.options.href,
         type: "POST",
-        data : {'action':action, 'id': user_id, 'name': user_name},
+        data : {'action':action, 'id': user_id, 'name': user_name, 'org': org, 'role': role},
         success:function(data, textStatus, jqXHR)
         {
 
