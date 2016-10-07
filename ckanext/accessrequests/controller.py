@@ -48,23 +48,14 @@ def get_orgs_and_roles(context):
     return organization, roles
 
 def assign_user_to_org(user_name, user_org, user_role, context):
-    org = logic.get_action('organization_list_for_user')({'user': user_name}, {"permission": "read"})
-    sys_admin = model.Session.query(model.User).\
-                                    filter(sqlalchemy.and_(model.User.sysadmin == True, model.User.state == 'active')).\
-                                    first().name
-    if org and org[0]['name'] != user_org:
-        logic.get_action('organization_member_delete')(context, {"id": org[0]['id'], "username": user_name})
-    logic.get_action('organization_member_create')({"user": sys_admin}, {
+    org = logic.get_action('organization_list_for_user')(context, {"permission": "read"})[0]
+    if org and org['name'] != user_org:
+        logic.get_action('organization_member_delete')(context, {"id": org['id'], "username": user_name})
+    logic.get_action('organization_member_create')(context, {
                                                     "id": user_org,
                                                     "username": user_name,
                                                     "role": user_role})
-    return org[0]['display_name'] if org else logic.get_action('organization_show')({},{'id': user_org,
-                                                                  'include_extras': False,
-                                                                  'include_users': False,
-                                                                  'include_groups': False,
-                                                                  'include_tags': False,
-                                                                  'include_followers': False
-                                                                   })['display_name']
+    return org['display_name'] if org else model.Group.get(user_org)['display_name']
 
 def all_account_requests():
     '''Return a list of all pending user accounts
