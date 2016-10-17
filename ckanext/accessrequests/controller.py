@@ -47,15 +47,18 @@ def get_orgs_and_roles(context):
     roles = logic.get_action('member_roles_list')(context, {'group_type': 'organization'})
     return organization, roles
 
-def assign_user_to_org(user_name, user_org, user_role, context):
-    org = logic.get_action('organization_list_for_user')(context, {"permission": "read"})[0]
-    if org and org['name'] != user_org:
-        logic.get_action('organization_member_delete')(context, {"id": org['id'], "username": user_name})
-    logic.get_action('organization_member_create')(context, {
+def assign_user_to_org(user_id, user_org, user_role, context):
+    org = model.Session.query(model.Member).\
+                             filter(model.Member.table_id==user_id).\
+                             first()
+    if org and org.group.id != user_org:
+        logic.get_action('organization_member_delete')(context, {"id": org.group.id, "username": user_id})
+    org = logic.get_action('organization_member_create')(context, {
                                                     "id": user_org,
-                                                    "username": user_name,
+                                                    "username": user_id,
                                                     "role": user_role})
-    return org['display_name'] if org else model.Group.get(user_org)['display_name']
+    group_new = model.Group.get(org['group_id'])
+    return group_new.title if org else None
 
 def all_account_requests():
     '''Return a list of all pending user accounts
@@ -216,9 +219,9 @@ class AccessRequestsController(UserController):
             object_id_validators['approve new user'] = user_id_exists
             activity_dict['activity_type'] = 'approve new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
-            org_display_name = assign_user_to_org(user_name, user_org, user_role, context)
+            org_display_name = assign_user_to_org(user_id, user_org, user_role, context)
             # Send invitation to complete registration
-            msg = "User account request for {0} (Organization : {1}, Role: {2}) has been approved by {3}".format(user.fullname, org_display_name, user_role, c.userobj.fullname)
+            msg = "User account request for {0} (Organization : {1}, Role: {2}) has been approved by {3}".format(user.fullname, org_display_name, user_role.title(), c.userobj.fullname)
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', msg)
             try:
                 mailer.send_invite(user)
