@@ -3,6 +3,8 @@
 
 {% block subtitle %}{{ _('Account requests') }}{% endblock %}
 
+{% block maintag %}<div role="main" class="account-requests-page">{% endblock %}
+
 {% block breadcrumb_content %}
   <li class="active">{{ h.nav_link(_('Account requests'), controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests') }}</li>
 {% endblock %}
@@ -24,6 +26,7 @@
       </ul>
     </header>
   {% endblock %}
+    <h2 class="list-title">List of account requests</h2>
     <div class="module-content">
       {% if self.page_primary_action() | trim %}
         <div class="page_primary_action">
@@ -32,6 +35,7 @@
       {% endif %}
       {% block primary_content_inner %}
       {% resource 'accessrequests/accessrequests.js' %}
+      {% resource 'accessrequests/fix-select-ff.js' %}
 
         <ul class="user-list">
         {% if accounts %}
@@ -40,17 +44,61 @@
               <tr>
                 <th>Email</th>
                 <th>Name</th>
+                <th>Org</th>
+                <th>Role</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for account in accounts %}
                 <tr>
-                  <td >{{ account.email }}</td>
-                  <td>{{ account.name }}</td>
-                  <td>
-                    <button data-module="account-request-manage" data-module-action="approve" data-module-href="account_requests_management" data-module-id="{{ account.id }}" data-module-name="{{ account.username }}" class="btn btn-success">Approve</button>
-                    <button data-module="account-request-manage" data-module-action="forbid" data-module-href="account_requests_management" data-module-id="{{ account.id }}" data-module-name="{{ account.username }}" class="btn btn-info">Reject</button>
+                  <td class="label-td">Email</td>
+                  <td>{{ account.email }}</td>
+                  <td class="label-td">Name</td>
+                  <td class="name-td">{{ account.name }}</td>
+                  <td class="label-td">Org</td>
+                  <td class="org-td">
+                    {#<form name="organization-for-request-form-{{loop.index}}">#}
+                      <div class="control-group control-small">
+                        <div class="controls ">
+                          <select class="account-requests-select" name="organization-for-request" id="organization-for-request" autocomplete="off">
+                          {% for org in organization %}
+                            <option value="{{ org.id }}" {% if account.org and org.id == account.org.group.id %} selected="selected"{% endif %}>{{ org.display_name }}</option>
+                          {% endfor %}
+                          </select>
+                        </div>
+                      </div>
+                    {#</form>#}
+                  </td>
+                  <td class="label-td">Role</td>
+                  <td class="role-td">
+                    {#<form name="organization-role-{{loop.index}}">#}
+                      <div class="control-group control-small">
+                        <div class="controls ">
+                          <select class="account-requests-select" name="organization-role" id="organization-role" autocomplete="off">
+                          {% for role in roles %}
+                            <option value="{{ role.value }}" {% if account.org and role.value == account.org.capacity %} selected="selected"{% endif %}>{{ role.text }}</option>
+                          {% endfor %}
+                          </select>
+                        </div>
+                      </div>
+                    {#</form>#}
+                  </td>
+                  <td class="label-td">Actions</td><td class="btn-td">
+                    <button data-module="account-request-manage"
+                            data-module-action="approve"
+                            data-module-href="account_requests_management"
+                            data-module-id="{{ account.id }}"
+                            data-module-name="{{ account.username }}"
+                            class="btn btn-success">Approve
+                    </button>
+                    <button data-module="account-request-manage"
+                            data-module-action="forbid"
+                            data-module-href="account_requests_management"
+                            data-module-id="{{ account.id }}"
+                            data-module-name="{{ account.username }}"
+                            class="btn btn-info">Reject
+                    </button>
                   </td>
                 </tr>
               {% endfor %}
@@ -66,15 +114,5 @@
 {% endblock %}
 
 {% block secondary_content %}
-  <div class="module module-narrow module-shallow">
-    <h2 class="module-heading">
-      <i class="icon-info-sign"></i>
-      {{ _('Account requests') }}
-    </h2>
-    <div class="module-content">
-      {% trans %}
-        <p>List of account requests</p>
-      {% endtrans %}
-    </div>
-  </div>
+
 {% endblock %}
