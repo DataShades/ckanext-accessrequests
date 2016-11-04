@@ -45,27 +45,32 @@ def get_orgs_and_roles(context):
                                                                     'include_followers': False
                                                                      }))
     roles = logic.get_action('member_roles_list')(context, {'group_type': 'organization'})
+    roles.insert(0, {'text': 'No role', 'value': ''})
     return organization, roles
 
 def assign_user_to_org(user_id, user_org, user_role, context):
+    if not user_org:
+        return (None, None)
+    org_role = user_role if user_role else 'member'
     org = model.Session.query(model.Member).\
-                             filter(model.Member.table_id==user_id).\
+                             filter(model.Member.table_id == user_id).\
                              first()
     if org and org.group.id != user_org:
         logic.get_action('organization_member_delete')(context, {"id": org.group.id, "username": user_id})
     org = logic.get_action('organization_member_create')(context, {
                                                     "id": user_org,
                                                     "username": user_id,
-                                                    "role": user_role})
-    group_new = model.Group.get(org['group_id'])
-    return group_new.title if org else None
+                                                    "role": org_role})
+    org_new = model.Group.get(org['group_id'])
+    return (org_new.title, org_role.title() if user_org else None)
 
 def all_account_requests():
     '''Return a list of all pending user accounts
     '''
     # TODO: stop this returning invited users also
-    return model.Session.query(model.User, model.Member).\
+    return model.Session.query(model.User, model.Member, model.Group.is_organization).\
                                  outerjoin(model.Member, model.Member.table_id == model.User.id).\
+                                 outerjoin(model.Group, model.Member.group_id == model.Group.id).\
                                  filter(model.User.state=='pending').\
                                  all()
 
@@ -128,16 +133,25 @@ class AccessRequestsController(UserController):
             reason_to_access = params['reason-to-access'],
             role = params['role']
             )
-        organization = model.Group.get(data['organization_request'])
-        sys_admin = model.Session.query(model.User).filter(sqlalchemy.and_(model.User.sysadmin == True, model.User.state == 'active')).first().name
+
         try:
             captcha.check_recaptcha(request)
             user_dict = logic.get_action('user_create')(context, data)
-            org_member = logic.get_action('organization_member_create')({"user": sys_admin}, {
-                                                                        "id": organization.id,
-                                                                        "username": user_dict['name'],
-                                                                        "role": data['role']})
-            msg = "A request for a new user account has been submitted:\nUsername: " + data['name'] + "\nName: " + data['fullname'] + "\nEmail: " + data['email'] + "\nOrganisation: " + organization.display_name + "\nReason for access: " + data['reason_to_access'] + "\n\nThis request can be approved or rejected at " + g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests')
+            if params['organization-for-request']:
+                organization = model.Group.get(data['organization_request'])
+                sys_admin = model.Session.query(model.User).filter(sqlalchemy.\
+                                    and_(model.User.sysadmin == True, model.User.state == 'active')).first().name
+                org_member = logic.get_action('organization_member_create')({"user": sys_admin}, {
+                                                                            "id": organization.id,
+                                                                            "username": user_dict['name'],
+                                                                            "role": data['role'] if data['role'] else 'member'})
+            else:
+                organization = None
+            msg = "A request for a new user account has been submitted:\nUsername: {}\
+                    \nName: {}\nEmail: {}\nOrganisation: {}\nReason for access: {}\
+                    \nThis request can be approved or rejected at {}".format(
+                    data['name'], data['fullname'], data['email'], organization.display_name if organization else '', data['reason_to_access'],
+                    g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests'))
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request', msg)
             h.flash_success('Your request for access to the {0} has been submitted.'.format(config.get('ckan.site_title')))
         except (ValidationError,CaptchaError), e:
@@ -174,7 +188,8 @@ class AccessRequestsController(UserController):
             'username': user.name,
             'email': user.email,
             'org': member,
-        } for user, member in all_account_requests() if user.id not in not_approved_users]
+            'is_org': is_org,
+        } for user, member, is_org in all_account_requests() if user.id not in not_approved_users]
         return render('user/account_requests.html', {'accounts': accounts, 'organization': organization, 'roles': roles})
 
     def account_requests_management(self):
@@ -209,9 +224,14 @@ class AccessRequestsController(UserController):
             if org:
                 logic.get_action('organization_member_delete')(context, {"id": org[0]['id'], "username": user_name})
             logic.get_action('user_delete')(context, {'id':user_id})
-            msg = "Your account request for {0} has been rejected by {1}\n\nFor further clarification as to why your request has been rejected please contact the NSW Flood Data Portal ({2})".format(config.get('ckan.site_title'), c.userobj.fullname, config.get('ckanext.accessrequests.approver_email'))
+            msg = "Your account request for {0} has been rejected by {1}\
+                    \n\nFor further clarification as to why your request has been\
+                     rejected please contact the NSW Flood Data Portal ({2})".format(
+                         config.get('ckan.site_title'), c.userobj.fullname,
+                         config.get('ckanext.accessrequests.approver_email'))
             mailer.mail_recipient(user.fullname, user.email, 'Account request', msg)
-            msg = "User account request for {0} has been rejected by {1}".format(user.fullname or user_name, c.userobj.fullname)
+            msg = "User account request for {0} has been rejected by {1}".format(
+                                                                        user.fullname or user_name, c.userobj.fullname)
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', msg)
         elif action == 'approve':
             user_org = request.params['org']
@@ -219,9 +239,11 @@ class AccessRequestsController(UserController):
             object_id_validators['approve new user'] = user_id_exists
             activity_dict['activity_type'] = 'approve new user'
             logic.get_action('activity_create')(activity_create_context, activity_dict)
-            org_display_name = assign_user_to_org(user_id, user_org, user_role, context)
+            org_display_name, org_role = assign_user_to_org(user_id, user_org, user_role, context)
             # Send invitation to complete registration
-            msg = "User account request for {0} (Organization : {1}, Role: {2}) has been approved by {3}".format(user.fullname, org_display_name, user_role.title(), c.userobj.fullname)
+            msg = "User account request for {0} (Organization : {1}, Role: {2}) has been approved by {3}".format(
+                                                        user.fullname or user_name,
+                                                        org_display_name, org_role, c.userobj.fullname)
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', msg)
             try:
                 mailer.send_invite(user)

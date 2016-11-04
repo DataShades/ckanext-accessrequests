@@ -9,9 +9,10 @@
     <label class="control-label">Organisation</label>
     <div class="controls ">
       <select name="organization-for-request">
-      {% for org in organization %}
-        <option value="{{ org.id }}" {% if org.id == data.organization_request %} selected="selected"{% endif %}>{{ org.display_name }}</option>
-      {% endfor %}
+        <option value="">No organisation</option>
+        {% for org in organization %}
+          <option value="{{ org.id }}" {% if org.id == data.organization_request %} selected="selected"{% endif %}>{{ org.display_name }}</option>
+        {% endfor %}
       </select>
     </div>
   </div>
