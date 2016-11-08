@@ -145,12 +145,14 @@ class AccessRequestsController(UserController):
                                                                             "id": organization.id,
                                                                             "username": user_dict['name'],
                                                                             "role": data['role'] if data['role'] else 'member'})
+                role = data['role'].title() if data['role'] else 'Member'
             else:
                 organization = None
             msg = "A request for a new user account has been submitted:\nUsername: {}\
-                    \nName: {}\nEmail: {}\nOrganisation: {}\nReason for access: {}\
+                    \nName: {}\nEmail: {}\nOrganisation: {}\nRole: {}\nReason for access: {}\
                     \nThis request can be approved or rejected at {}".format(
-                    data['name'], data['fullname'], data['email'], organization.display_name if organization else '', data['reason_to_access'],
+                    data['name'], data['fullname'], data['email'], organization.display_name if organization else None,
+                    role if organization else None, data['reason_to_access'],
                     g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests'))
             mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request', msg)
             h.flash_success('Your request for access to the {0} has been submitted.'.format(config.get('ckan.site_title')))
