@@ -154,7 +154,13 @@ class AccessRequestsController(UserController):
                     data['name'], data['fullname'], data['email'], organization.display_name if organization else None,
                     role if organization else None, data['reason_to_access'],
                     g.site_url + h.url_for(controller='ckanext.accessrequests.controller:AccessRequestsController', action='account_requests'))
-            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request', msg)
+            list_admin_emails = config.get('ckanext.accessrequests.approver_email').split()
+            for admin_email in list_admin_emails:
+                try:
+                    mailer.mail_recipient('Admin', admin_email, 'Account request', msg)
+                except mailer.MailerException as e:
+                    h.flash("Email error: {0}".format(
+                        e.message), allow_html=False)
             h.flash_success('Your request for access to the {0} has been submitted.'.format(config.get('ckan.site_title')))
         except (ValidationError,CaptchaError), e:
             # return validation failures to the form
@@ -218,6 +224,7 @@ class AccessRequestsController(UserController):
             'user_id': c.userobj.id,
             'object_id': user_id
         }
+        list_admin_emails = config.get('ckanext.accessrequests.approver_email').split()
         if action == 'forbid':
             object_id_validators['reject new user'] = user_id_exists
             activity_dict['activity_type'] = 'reject new user'
@@ -226,15 +233,19 @@ class AccessRequestsController(UserController):
             if org:
                 logic.get_action('organization_member_delete')(context, {"id": org[0]['id'], "username": user_name})
             logic.get_action('user_delete')(context, {'id':user_id})
-            msg = "Your account request for {0} has been rejected by {1}\
-                    \n\nFor further clarification as to why your request has been\
-                     rejected please contact the NSW Flood Data Portal ({2})".format(
-                         config.get('ckan.site_title'), c.userobj.fullname,
-                         config.get('ckanext.accessrequests.approver_email'))
-            mailer.mail_recipient(user.fullname, user.email, 'Account request', msg)
+            msg = ("Your account request for {0} has been rejected by {1}\
+                    \n\nFor further clarification as to why your request has been " +
+                    "rejected please contact the NSW Flood Data Portal ({2})")
+            mailer.mail_recipient(user.fullname, user.email, 'Account request', msg.format(
+                 config.get('ckan.site_title'), c.userobj.fullname, c.userobj.email))
             msg = "User account request for {0} has been rejected by {1}".format(
                                                                         user.fullname or user_name, c.userobj.fullname)
-            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', msg)
+            for admin_email in list_admin_emails:
+                try:
+                    mailer.mail_recipient('Admin', admin_email, 'Account request feedback', msg)
+                except mailer.MailerException as e:
+                    h.flash("Email error: {0}".format(
+                        e.message), allow_html=False)
         elif action == 'approve':
             user_org = request.params['org']
             user_role = request.params['role']
@@ -246,7 +257,12 @@ class AccessRequestsController(UserController):
             msg = "User account request for {0} (Organization : {1}, Role: {2}) has been approved by {3}".format(
                                                         user.fullname or user_name,
                                                         org_display_name, org_role, c.userobj.fullname)
-            mailer.mail_recipient('Admin', config.get('ckanext.accessrequests.approver_email'), 'Account request feedback', msg)
+            for admin_email in list_admin_emails:
+                try:
+                    mailer.mail_recipient('Admin', admin_email, 'Account request feedback', msg)
+                except mailer.MailerException as e:
+                    h.flash("Email error: {0}".format(
+                        e.message), allow_html=False)
             try:
                 mailer.send_invite(user)
             except Exception as e:
