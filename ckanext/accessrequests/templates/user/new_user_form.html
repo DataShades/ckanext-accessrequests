@@ -18,7 +18,7 @@
     </div>
   </div>
   {{ form.select('role', label=_('Role'), options=roles, selected=data.role) }}
-  {{ form.markdown('reason-to-access', id='field-reason-to-access', label=_('Reason for access'), placeholder=_('text'), value=data.reason_to_access, error=errors.reason_to_access) }}
+  {{ form.markdown('reason-to-access', id='field-reason-to-access', label=_('Reason for access'), placeholder=_('Include the organisation you work for, your role in the organisation and a brief description of why you are requesting access. Note: members of the public are not entitled to restricted access to the portal.'), value=data.reason_to_access, error=errors.reason_to_access) }}
   {% if g.recaptcha_publickey %}
     {% snippet "user/snippets/recaptcha.html", public_key=g.recaptcha_publickey %}
   {% endif %}
