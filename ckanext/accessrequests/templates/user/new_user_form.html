@@ -1,21 +1,24 @@
 {% import "macros/form.html" as form %}
+{% resource 'accessrequests/org.js' %}
 
 <form id="user-register-form" class="form-horizontal" action="" method="post">
   {{ form.errors(error_summary) }}
-  {{ form.input("name", id="field-username", label=_("Username"), placeholder=_("username"), value=data.name, error=errors.name, classes=["control-medium"]) }}
-  {{ form.input("fullname", id="field-fullname", label=_("Full Name"), placeholder=_("Joe Bloggs"), value=data.fullname, error=errors.fullname, classes=["control-medium"]) }}
+  {{ form.input("name", id="field-username", label=_("Username"), placeholder=_("username"), value=data.name, error=errors.name, classes=["control-medium"], is_required=true, attrs={'required':'required'}) }}
+  {{ form.input("fullname", id="field-fullname", label=_("Full Name"), placeholder=_("Joe Bloggs"), value=data.fullname, error=errors.fullname, classes=["control-medium"], is_required=true, attrs={'required':'required'}) }}
   {{ form.input("email", id="field-email", label=_("Email"), type="email", placeholder=_("joe@example.com"), value=data.email, error=errors.email, classes=["control-medium"], is_required=true, attrs={'required':'required'}) }}
   <div class="control-group control-medium">
     <label class="control-label">Organisation</label>
     <div class="controls ">
-      <select name="organization-for-request">
-      {% for org in organization %}
-        <option value="{{ org.id }}">{{ org.display_name }}</option>
-      {% endfor %}
+      <select name="organization-for-request" id="organization-for-request">
+        <option value="">No organisation</option>
+        {% for org in organization %}
+          <option value="{{ org.id }}" {% if org.id == data.organization_request %} selected="selected"{% endif %}>{{ org.display_name }}</option>
+        {% endfor %}
       </select>
     </div>
   </div>
-  {{ form.markdown('reason-to-access', id='field-reason-to-access', label=_('Reason for access'), placeholder=_('text')) }}
+  {{ form.select('role', label=_('Role'), options=roles, selected=data.role) }}
+  {{ form.markdown('reason-to-access', id='field-reason-to-access', label=_('Reason for access'), placeholder=_('Include the organisation you work for, your role in the organisation and a brief description of why you are requesting access. Note: members of the public are not entitled to restricted access to the portal.'), value=data.reason_to_access, error=errors.reason_to_access) }}
   {% if g.recaptcha_publickey %}
     {% snippet "user/snippets/recaptcha.html", public_key=g.recaptcha_publickey %}
   {% endif %}

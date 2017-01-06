@@ -46,7 +46,10 @@ def request_reset(context, data_dict=None):
         context = {'model': model,
                    'user': c.user}
         data_dict = {'id': request.params.get('user')}
-        user_dict = get_action('user_show')(context, data_dict)
+        try:
+            user_dict = get_action('user_show')(context, data_dict)
+        except logic.NotFound:
+            return {'success': True}
         if user_dict['state'] == 'pending':
             return {'success': False}
     return {'success': True}
