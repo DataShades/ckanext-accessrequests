@@ -148,7 +148,7 @@ class AccessRequestsController(UserController):
                 role = data['role'].title() if data['role'] else 'Member'
             else:
                 organization = None
-            msg = "A request for a new user account has been submitted:\nUsername: {}\
+            msg = u"A request for a new user account has been submitted:\nUsername: {}\
                     \nName: {}\nEmail: {}\nOrganisation: {}\nRole: {}\nReason for access: {}\
                     \nThis request can be approved or rejected at {}".format(
                     data['name'], data['fullname'], data['email'], organization.display_name if organization else None,
