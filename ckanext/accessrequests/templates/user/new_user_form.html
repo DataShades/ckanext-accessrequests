@@ -1,6 +1,20 @@
 {% import "macros/form.html" as form %}
 {% resource 'accessrequests/org.js' %}
 
+{% set search_icon %}
+<i class="fa fa-info-circle"
+   data-module="bs-tooltip"
+   data-toggle="tooltip"
+   data-html="true"
+   data-placement="bottom"
+   title="{{h.render_markdown(
+	  '- __Standard Editor__: I would like to add and manage my organisation’s data\n'
+	  '- __Standard Member__: I only require view access to my organisation\'s data\n'
+	  '- __Request to be Admin__: I require full management of my organisation’s data and members. Typically one for each organisation. Provide reason below.'
+	  ) }}"
+></i>
+{% endset %}
+
 <form id="user-register-form" class="form-horizontal" action="" method="post">
   {{ form.errors(error_summary) }}
   {{ form.input("name", id="field-username", label=_("Username"), placeholder=_("username"), value=data.name, error=errors.name, classes=["control-medium"], is_required=true, attrs={'required':'required'}) }}
@@ -12,12 +26,16 @@
       <select name="organization-for-request" id="organization-for-request">
         <option value="">No organisation</option>
         {% for org in organization %}
-          <option value="{{ org.id }}" {% if org.id == data.organization_request %} selected="selected"{% endif %}>{{ org.display_name }}</option>
+            <option value="{{ org.id }}" {% if org.id == data.organization_request %} selected="selected"{% endif %}>{{ org.display_name }}</option>
         {% endfor %}
       </select>
     </div>
   </div>
-  {{ form.select('role', label=_('Role'), options=roles, selected=data.role) }}
+  {{ form.select('role', label=_('Role') + search_icon|safe, options=roles, selected=data.role) }}
+
+
+
+
   {{ form.markdown('reason-to-access', id='field-reason-to-access', label=_('Reason for access'), placeholder=_('Include the organisation you work for, your role in the organisation and a brief description of why you are requesting access. Note: members of the public are not entitled to restricted access to the portal.'), value=data.reason_to_access, error=errors.reason_to_access) }}
   {% if g.recaptcha_publickey %}
     {% snippet "user/snippets/recaptcha.html", public_key=g.recaptcha_publickey %}
