@@ -1,34 +1,3 @@
-.. You should enable this project on travis-ci.org and coveralls.io to make
-   these badges work. The necessary Travis and Coverage config files have been
-   generated for you.
-
-.. image:: https://travis-ci.org/DataShades/ckanext-accessrequests.svg?branch=master
-    :target: https://travis-ci.org/DataShades/ckanext-accessrequests
-
-.. image:: https://coveralls.io/repos/DataShades/ckanext-accessrequests/badge.svg
-  :target: https://coveralls.io/r/DataShades/ckanext-accessrequests
-
-.. image:: https://pypip.in/download/ckanext-accessrequests/badge.svg
-    :target: https://pypi.python.org/pypi//ckanext-accessrequests/
-    :alt: Downloads
-
-.. image:: https://pypip.in/version/ckanext-accessrequests/badge.svg
-    :target: https://pypi.python.org/pypi/ckanext-accessrequests/
-    :alt: Latest Version
-
-.. image:: https://pypip.in/py_versions/ckanext-accessrequests/badge.svg
-    :target: https://pypi.python.org/pypi/ckanext-accessrequests/
-    :alt: Supported Python versions
-
-.. image:: https://pypip.in/status/ckanext-accessrequests/badge.svg
-    :target: https://pypi.python.org/pypi/ckanext-accessrequests/
-    :alt: Development Status
-
-.. image:: https://pypip.in/license/ckanext-accessrequests/badge.svg
-    :target: https://pypi.python.org/pypi/ckanext-accessrequests/
-    :alt: License
-
-
 ------------------------------------------------------------------------------------------
 ckanext-accessrequests
 ------------------------------------------------------------------------------------------
@@ -76,9 +45,12 @@ Configuration
 Set configuration options in ini file::
 
   ckan.plugins = accessrequests
-  
-  ckanext.accessrequests.approver_email = admin email for receiving info about new users requests
 
+  # admin email for receiving info about new users requests
+  ckanext.accessrequests.approver_email = email@example.com
+
+  # list of roles that are not available during access request process
+  ckanext.accessrequests.restricted_roles = creator admin
 ------------------------
 Development Installation
 ------------------------
