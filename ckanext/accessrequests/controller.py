@@ -59,10 +59,19 @@ def get_orgs_and_roles(context):
             'group_type': 'organization'
         }
     )
-    roles.insert(0, {'text': "I'm not sure!", 'value': ''})
+    role_order = ('editor', 'member', 'admin', '')
+    for role in roles:
+        if role['value'] == 'admin':
+            break
+    else:
+        roles.append({'text': "Admin", 'value': 'admin'})
+    roles = sorted([r for r in roles if r['value'] != 'creator'],
+                   key=lambda role: role_order.index(role['value']))
+    roles.append({'text': "I'm not sure!", 'value': ''})
 
     for role in roles:
         role['text'] = role_labels.get(role['value'], role['text'])
+
     return organization, roles
 
 
@@ -116,6 +125,7 @@ def not_approved():
 
 
 class AccessRequestsController(UserController):
+
     def request_account(self, data=None, errors=None, error_summary=None):
         '''GET to display a form for requesting a user account or POST the
            form data to submit the request.
@@ -195,8 +205,8 @@ class AccessRequestsController(UserController):
                 u"\nThis request can be approved or rejected at {}"
             ).format(
                 data['name'], data['fullname'], data['email'],
-                organization.display_name if organization else None, role
-                if organization else None, data['reason_to_access'],
+                organization.display_name if organization else None,
+                role if organization else None, data['reason_to_access'],
                 g.site_url + h.url_for(
                     controller=
                     'ckanext.accessrequests.controller:AccessRequestsController',
@@ -258,7 +268,8 @@ class AccessRequestsController(UserController):
             'email': user.email,
             'org': member,
             'is_org': is_org,
-        } for user, member, is_org in all_account_requests()
+        }
+                    for user, member, is_org in all_account_requests()
                     if user.id not in not_approved_users]
         return render(
             'user/account_requests.html', {
@@ -325,9 +336,8 @@ class AccessRequestsController(UserController):
                 )
             )
             msg = ("User account request for {0} "
-                   "has been rejected by {1}").format(
-                       user.fullname or user_name, c.userobj.fullname
-                   )
+                   "has been rejected by {1}"
+                   ).format(user.fullname or user_name, c.userobj.fullname)
             for admin_email in list_admin_emails:
                 try:
                     mailer.mail_recipient(
