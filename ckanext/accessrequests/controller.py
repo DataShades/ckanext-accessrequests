@@ -376,7 +376,9 @@ class AccessRequestsController(UserController):
                         "Email error: {0}".format(e.message), allow_html=False
                     )
             try:
-                mailer.send_invite(user)
+                org_dict = tk.get_action('organization_show')(context, {'id': user_org})
+                user.name = user.fullname or user.name
+                mailer.send_invite(user, org_dict, user_role)
             except Exception as e:
                 log.error('Error emailing invite to user: %s', e)
                 abort(500, _('Error: couldn' 't email invite to user'))
