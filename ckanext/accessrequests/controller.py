@@ -277,7 +277,10 @@ class AccessRequestsController(UserController):
             'user/account_requests.html', {
                 'accounts': accounts,
                 'organization': organization,
-                'roles': roles
+                'roles': roles,
+                'allow_no_org': tk.asbool(
+                    config.get('ckanext.accessrequests.allow_no_org', True)
+                )
             }
         )
 

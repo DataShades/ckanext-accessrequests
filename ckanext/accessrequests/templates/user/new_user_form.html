@@ -23,9 +23,11 @@
   <div class="control-group control-medium">
       <label class="control-label">Organisation</label>
     <div class="controls ">
-        <select name="organization-for-request" id="organization-for-request">
+        <select name="organization-for-request" id="organization-for-request" {% if not allow_no_org %}required{% endif %}>
             {% if  allow_no_org %}
                 <option value="">No organisation</option>
+            {% else %}
+                <option></option>
             {% endif %}
             {% for org in organization %}
                 <option value="{{ org.id }}" {% if org.id == data.organization_request %} selected="selected"{% endif %}>{{ org.display_name }}</option>
