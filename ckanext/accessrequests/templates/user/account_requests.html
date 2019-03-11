@@ -62,8 +62,10 @@
                     <div class="control-group control-small">
                       <div class="controls ">
                         <select class="account-requests-select" name="organization-for-request" id="organization-for-request" autocomplete="off">
-                          <option value="" {% if not account.org %} selected="selected"{% endif %}>No organisation</option>
-                          {% for org in organization %}
+                            {% if allow_no_org %}
+                                <option value="" {% if not account.org %} selected="selected"{% endif %}>No organisation</option>
+                            {% endif %}
+                            {% for org in organization %}
                             <option value="{{ org.id }}" {% if account.org and org.id == account.org.group.id %} selected="selected"{% endif %}>{{ org.display_name }}</option>
                           {% endfor %}
                         </select>
