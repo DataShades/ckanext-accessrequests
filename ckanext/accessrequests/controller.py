@@ -154,7 +154,10 @@ class AccessRequestsController(UserController):
             'errors': errors,
             'error_summary': error_summary,
             'organization': organization,
-            'roles': roles
+            'roles': roles,
+            'allow_no_org': tk.asbool(
+                config.get('ckanext.accessrequests.allow_no_org', True)
+            )
         }
 
         c.is_sysadmin = authz.is_sysadmin(c.user)
