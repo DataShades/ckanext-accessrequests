@@ -21,14 +21,16 @@
   {{ form.input("fullname", id="field-fullname", label=_("Full Name"), placeholder=_("Joe Bloggs"), value=data.fullname, error=errors.fullname, classes=["control-medium"], is_required=true, attrs={'required':'required'}) }}
   {{ form.input("email", id="field-email", label=_("Email"), type="email", placeholder=_("joe@example.com"), value=data.email, error=errors.email, classes=["control-medium"], is_required=true, attrs={'required':'required'}) }}
   <div class="control-group control-medium">
-    <label class="control-label">Organisation</label>
+      <label class="control-label">Organisation</label>
     <div class="controls ">
-      <select name="organization-for-request" id="organization-for-request">
-        <option value="">No organisation</option>
-        {% for org in organization %}
-            <option value="{{ org.id }}" {% if org.id == data.organization_request %} selected="selected"{% endif %}>{{ org.display_name }}</option>
-        {% endfor %}
-      </select>
+        <select name="organization-for-request" id="organization-for-request">
+            {% if  allow_no_org %}
+                <option value="">No organisation</option>
+            {% endif %}
+            {% for org in organization %}
+                <option value="{{ org.id }}" {% if org.id == data.organization_request %} selected="selected"{% endif %}>{{ org.display_name }}</option>
+            {% endfor %}
+        </select>
     </div>
   </div>
   {{ form.select('role', label=_('Role') + search_icon|safe, options=roles, selected=data.role) }}
