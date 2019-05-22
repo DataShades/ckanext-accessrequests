@@ -3,7 +3,7 @@
 {% block subtitle %}{{ _('All Users') }}{% endblock %}
 
 {% block breadcrumb_content %}
-  <li class="active">{{ h.nav_link(_('Users'), controller='user', action='index') }}</li>
+  <li class="active">{{ h.nav_link(_('Users'), 'user.index') }}</li>
 {% endblock %}
 
 {% block primary_content %}
@@ -13,7 +13,7 @@
       <ul class="nav nav-tabs">
         {% block content_primary_nav %}
           {% set has_access = h.check_access('check_access_account_requests') %}
-          {{ h.build_nav_icon('user_index', _('List users')) }}
+          {{ h.build_nav_icon('user.index', _('List users')) }}
           {% if has_access %}
             {{ h.build_nav_icon('account_requests', _('Account requests')) }}
           {% endif %}
@@ -28,7 +28,7 @@
       {% block users_list %}
         <ul class="user-list">
           {% block users_list_inner %}
-            {% for user in c.page.items %}
+            {% for user in page.items %}
               <li>{{ h.linked_user(user['name'], maxlength=20) }}</li>
             {% endfor %}
           {% endblock %}
@@ -36,7 +36,7 @@
       {% endblock %}
     </div>
     {% block page_pagination %}
-      {{ c.page.pager(q=c.q, order_by=c.order_by) }}
+      {{ page.pager(q=q, order_by=order_by) }}
     {% endblock %}
   </article>
 {% endblock %}
