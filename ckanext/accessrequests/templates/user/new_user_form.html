@@ -1,5 +1,8 @@
 {% import "macros/form.html" as form %}
-{% resource 'accessrequests/org.js' %}
+
+{% set type = 'asset' if h.ckan_version() > '2.9' else 'resource' %}
+{% include 'accessrequests/snippets/member_' ~ type ~ '.html' %}
+
 
 {% set search_icon %}
 <i class="fa fa-info-circle"

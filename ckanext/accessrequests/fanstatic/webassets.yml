@@ -1,0 +1,34 @@
+accessrequests_js:
+  output: ckanext-accessrequests/%(version)s_accessrequests.js
+  filter: rjsmin
+  extra:
+    preload:
+      - base/main
+  contents:
+    - bs-tooltip.js
+
+accessrequests_css:
+  output: ckanext-accessrequests/%(version)s_accessrequests.css
+  contents:
+    - ar.css
+
+account_js:
+  output: ckanext-accessrequests/%(version)s_account.js
+  filter: rjsmin
+  extra:
+    preload:
+      - base/main
+  contents:
+    - accessrequests.js
+    - fix-select-ff.js
+    - account-requests-page.js
+
+
+member_js:
+  output: ckanext-accessrequests/%(version)s_member.js
+  filter: rjsmin
+  extra:
+    preload:
+      - base/main
+  contents:
+    - org.js
