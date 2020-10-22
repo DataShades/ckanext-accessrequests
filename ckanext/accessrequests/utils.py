@@ -375,6 +375,7 @@ def account_requests_management():
             org_role,
             c.userobj.fullname,
         )
+
         for admin_email in list_admin_emails:
             try:
                 mailer.mail_recipient(
@@ -386,7 +387,11 @@ def account_requests_management():
             org_dict = tk.get_action("organization_show")(
                 context, {"id": user_org}
             )
-            user.name = user.name
+        except tk.ObjectNotFound:
+            org_dict = None
+
+        user.name = user.name
+        try:
             mailer.send_invite(user, org_dict, user_role)
         except Exception as e:
             log.error("Error emailing invite to user: %s", e)
