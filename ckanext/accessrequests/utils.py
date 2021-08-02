@@ -198,16 +198,20 @@ def _get_orgs_and_roles(context):
 def _not_approved():
     """Return a True if user not approved
     """
-    approved_users = (
-        model.Session.query(model.Activity)
-        .filter(model.Activity.activity_type == "approve new user")
-        .all()
-    )
+    approved_users = _approved_users()
     approved_users_id = []
     for user in approved_users:
         approved_users_id.append(user.object_id)
     return approved_users_id
 
+
+def _approved_users():
+    approved_users = (
+        model.Session.query(model.Activity)
+        .filter(model.Activity.activity_type == "approve new user")
+        .all()
+    )
+    return approved_users
 
 def _all_account_requests():
     """Return a list of all pending user accounts
