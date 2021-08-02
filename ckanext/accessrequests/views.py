@@ -52,7 +52,7 @@ class AccessRequestPerformResetView(PerformResetView):
             
             if user_state == 'pending' and not approved_users:
                 user_dict[u'state'] = user_state
-                h.flash_error(_(u'You cannot update your passowrd while your accoount is in process of approval.'))
+                h.flash_error(_(u'You cannot update your password while your account is in process of approval.'))
                 return h.redirect_to(u'home.index')
             else:
                 user_dict[u'state'] = model.State.ACTIVE
