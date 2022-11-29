@@ -28,7 +28,6 @@ role_labels = {
     "member": "Standard Member",
     "admin": "Request to be Admin",
     "creator": "Creator",
-    "downloader": "Standard Downloader",
 }
 
 
@@ -183,9 +182,9 @@ def _get_orgs_and_roles(context):
     roles = tk.get_action("member_roles_list")(
         context, {"group_type": "organization"}
     )
-    role_order = ("editor", "member", "admin", "downloader", "")
+    role_order = ("editor", "member", "admin", "")
     roles = sorted(
-        [r for r in roles if r["value"] != "creator"],
+        [r for r in roles if r["value"] not in ("creator", "downloader")],
         key=lambda role: role_order.index(role["value"]),
     )
     roles.append({"text": "I'm not sure!", "value": ""})
