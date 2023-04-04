@@ -184,7 +184,7 @@ def _get_orgs_and_roles(context):
     )
     role_order = ("editor", "member", "admin", "")
     roles = sorted(
-        [r for r in roles if r["value"] != "creator"],
+        [r for r in roles if r["value"] not in ("creator", "downloader")],
         key=lambda role: role_order.index(role["value"]),
     )
     roles.append({"text": "I'm not sure!", "value": ""})
@@ -198,16 +198,20 @@ def _get_orgs_and_roles(context):
 def _not_approved():
     """Return a True if user not approved
     """
-    approved_users = (
-        model.Session.query(model.Activity)
-        .filter(model.Activity.activity_type == "approve new user")
-        .all()
-    )
+    approved_users = _approved_users()
     approved_users_id = []
     for user in approved_users:
         approved_users_id.append(user.object_id)
     return approved_users_id
 
+
+def _approved_users():
+    approved_users = (
+        model.Session.query(model.Activity)
+        .filter(model.Activity.activity_type == "approve new user")
+        .all()
+    )
+    return approved_users
 
 def _all_account_requests():
     """Return a list of all pending user accounts
@@ -375,6 +379,7 @@ def account_requests_management():
             org_role,
             c.userobj.fullname,
         )
+
         for admin_email in list_admin_emails:
             try:
                 mailer.mail_recipient(
@@ -386,7 +391,11 @@ def account_requests_management():
             org_dict = tk.get_action("organization_show")(
                 context, {"id": user_org}
             )
-            user.name = user.name
+        except tk.ObjectNotFound:
+            org_dict = None
+
+        user.name = user.name
+        try:
             mailer.send_invite(user, org_dict, user_role)
         except Exception as e:
             log.error("Error emailing invite to user: %s", e)
