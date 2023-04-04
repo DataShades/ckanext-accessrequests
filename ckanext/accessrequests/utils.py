@@ -3,6 +3,7 @@ import binascii
 import logging
 import os
 
+import ckantoolkit as tk
 import sqlalchemy
 
 import ckan.authz as authz
@@ -11,9 +12,10 @@ import ckan.lib.helpers as h
 import ckan.lib.mailer as mailer
 import ckan.logic.schema as schema
 import ckan.model as model
-import ckantoolkit as tk
+from ckan.logic.validators import user_id_exists
 
-from ckan.logic.validators import user_id_exists, object_id_validators
+from ckanext.activity.logic.validators import object_id_validators
+from ckanext.activity.model.activity import Activity
 
 log = logging.getLogger(__name__)
 
@@ -33,8 +35,8 @@ role_labels = {
 
 def request_account(data=None, errors=None, error_summary=None):
     """GET to display a form for requesting a user account or POST the
-           form data to submit the request.
-        """
+    form data to submit the request.
+    """
     params = request.form if tk.check_ckan_version("2.9") else request.params
     context = {
         "model": model,
@@ -67,9 +69,14 @@ def request_account(data=None, errors=None, error_summary=None):
     }
 
     c.is_sysadmin = authz.is_sysadmin(c.user)
-    c.form = render(u"user/new_user_form.html", extra_vars=vars)
+    c.form = render("user/new_user_form.html", extra_vars=vars)
 
-    return render("user/new.html", extra_vars={"form": c.form,})
+    return render(
+        "user/new.html",
+        extra_vars={
+            "form": c.form,
+        },
+    )
 
 
 def _save_new_pending(context):
@@ -129,16 +136,14 @@ def _save_new_pending(context):
             organization.display_name if organization else None,
             role if organization else None,
             data["reason_to_access"],
-            h.url_for("account_requests", qualified=True),
+            h.url_for("accessrequests.account_requests", qualified=True),
         )
         list_admin_emails = tk.aslist(
             config.get("ckanext.accessrequests.approver_email")
         )
         for admin_email in list_admin_emails:
             try:
-                mailer.mail_recipient(
-                    "Admin", admin_email, "Account request", msg
-                )
+                mailer.mail_recipient("Admin", admin_email, "Account request", msg)
             except mailer.MailerException as e:
                 h.flash("Email error: {0}".format(e.message), allow_html=False)
         h.flash_success(
@@ -153,7 +158,7 @@ def _save_new_pending(context):
             error_summary = e.error_summary
         return request_account(data, errors, error_summary)
     except captcha.CaptchaError:
-        errors["Captcha"] = [_(u"Bad Captcha. Please try again.")]
+        errors["Captcha"] = [_("Bad Captcha. Please try again.")]
         error_summary["Captcha"] = "Bad Captcha. Please try again."
         return request_account(data, errors, error_summary)
 
@@ -161,8 +166,7 @@ def _save_new_pending(context):
 
 
 def _get_orgs_and_roles(context):
-    """Return a list of orgs and roles
-    """
+    """Return a list of orgs and roles"""
     organizations = tk.get_action("organization_list")({}, {})
     organization = []
     for org in organizations:
@@ -179,9 +183,7 @@ def _get_orgs_and_roles(context):
                 },
             )
         )
-    roles = tk.get_action("member_roles_list")(
-        context, {"group_type": "organization"}
-    )
+    roles = tk.get_action("member_roles_list")(context, {"group_type": "organization"})
     role_order = ("editor", "member", "admin", "")
     roles = sorted(
         [r for r in roles if r["value"] not in ("creator", "downloader")],
@@ -196,8 +198,7 @@ def _get_orgs_and_roles(context):
 
 
 def _not_approved():
-    """Return a True if user not approved
-    """
+    """Return a True if user not approved"""
     approved_users = _approved_users()
     approved_users_id = []
     for user in approved_users:
@@ -207,20 +208,18 @@ def _not_approved():
 
 def _approved_users():
     approved_users = (
-        model.Session.query(model.Activity)
-        .filter(model.Activity.activity_type == "approve new user")
+        model.Session.query(Activity)
+        .filter(Activity.activity_type == "approve new user")
         .all()
     )
     return approved_users
 
+
 def _all_account_requests():
-    """Return a list of all pending user accounts
-    """
+    """Return a list of all pending user accounts"""
     # TODO: stop this returning invited users also
     return (
-        model.Session.query(
-            model.User, model.Member, model.Group.is_organization
-        )
+        model.Session.query(model.User, model.Member, model.Group.is_organization)
         .outerjoin(model.Member, model.Member.table_id == model.User.id)
         .outerjoin(model.Group, model.Member.group_id == model.Group.id)
         .filter(model.User.state == "pending")
@@ -293,8 +292,7 @@ def _assign_user_to_org(user_id, user_org, user_role, context):
 
 
 def account_requests_management():
-    """ Approve or reject an account request
-    """
+    """Approve or reject an account request"""
     params = request.form if tk.check_ckan_version("2.9") else request.params
     action = params["action"]
     user_id = params["id"]
@@ -314,15 +312,11 @@ def account_requests_management():
         "session": model.Session,
     }
     activity_dict = {"user_id": c.userobj.id, "object_id": user_id}
-    list_admin_emails = tk.aslist(
-        config.get("ckanext.accessrequests.approver_email")
-    )
+    list_admin_emails = tk.aslist(config.get("ckanext.accessrequests.approver_email"))
     if action == "forbid":
         object_id_validators["reject new user"] = user_id_exists
         activity_dict["activity_type"] = "reject new user"
-        tk.get_action("activity_create")(
-            activity_create_context, activity_dict
-        )
+        tk.get_action("activity_create")(activity_create_context, activity_dict)
         org = tk.get_action("organization_list_for_user")(
             {"user": user_name}, {"permission": "read"}
         )
@@ -347,9 +341,9 @@ def account_requests_management():
                 c.userobj.email,
             ),
         )
-        msg = (
-            "User account request for {0} " "has been rejected by {1}"
-        ).format(user.fullname or user_name, c.userobj.fullname)
+        msg = ("User account request for {0} " "has been rejected by {1}").format(
+            user.fullname or user_name, c.userobj.fullname
+        )
         for admin_email in list_admin_emails:
             try:
                 mailer.mail_recipient(
@@ -362,9 +356,7 @@ def account_requests_management():
         user_role = params["role"]
         object_id_validators["approve new user"] = user_id_exists
         activity_dict["activity_type"] = "approve new user"
-        tk.get_action("activity_create")(
-            activity_create_context, activity_dict
-        )
+        tk.get_action("activity_create")(activity_create_context, activity_dict)
         org_display_name, org_role = _assign_user_to_org(
             user_id, user_org, user_role, context
         )
@@ -388,9 +380,7 @@ def account_requests_management():
             except mailer.MailerException as e:
                 h.flash("Email error: {0}".format(e.message), allow_html=False)
         try:
-            org_dict = tk.get_action("organization_show")(
-                context, {"id": user_org}
-            )
+            org_dict = tk.get_action("organization_show")(context, {"id": user_org})
         except tk.ObjectNotFound:
             org_dict = None
 

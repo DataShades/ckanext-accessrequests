@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from routes.mapper import SubMapper
-
 import ckantoolkit as tk
+from routes.mapper import SubMapper
 
 import ckan.plugins as p
 from ckan.lib.activity_streams import activity_stream_string_functions
@@ -42,9 +41,7 @@ class MixinPlugin(p.SingletonPlugin):
                 "/user/account_requests",
                 action="account_requests",
             )
-            m.connect(
-                "request_account", "/user/register", action="request_account"
-            )
+            m.connect("request_account", "/user/register", action="request_account")
             m.connect(
                 "account_requests_management",
                 "/user/account_requests_management",

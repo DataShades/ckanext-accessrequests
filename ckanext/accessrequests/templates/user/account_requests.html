@@ -21,7 +21,7 @@
       <ul class="nav nav-tabs">
         {% block content_primary_nav %}
           {{ h.build_nav_icon('user.index', _('List users')) }}
-          {{ h.build_nav_icon('account_requests', _('Account requests')) }}
+          {{ h.build_nav_icon('accessrequests.account_requests', _('Account requests')) }}
         {% endblock %}
       </ul>
     </header>
@@ -34,8 +34,7 @@
           </div>
       {% endif %}
       {% block primary_content_inner %}
-          {% set type = 'asset' if h.ckan_version() > '2.9' else 'resource' %}
-          {% include 'accessrequests/snippets/account_' ~ type ~ '.html' %}
+          {% asset 'accessrequests/account_js' %}
 
         <ul class="user-list">
         {% if accounts %}

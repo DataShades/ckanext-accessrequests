@@ -15,7 +15,7 @@
           {% set has_access = h.check_access('check_access_account_requests') %}
           {{ h.build_nav_icon('user.index', _('List users')) }}
           {% if has_access %}
-            {{ h.build_nav_icon('account_requests', _('Account requests')) }}
+            {{ h.build_nav_icon('accessrequests.account_requests', _('Account requests')) }}
           {% endif %}
         {% endblock %}
       </ul>

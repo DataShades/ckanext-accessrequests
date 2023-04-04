@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 
 import json
-from six import string_types
+
 import ckantoolkit as tk
+from six import string_types
 
-import ckan.plugins as plugins
-import ckan.model as model
-
-import ckan.lib.helpers as h
 import ckan.authz as authz
+import ckan.lib.helpers as h
+import ckan.model as model
+import ckan.plugins as plugins
 
-if tk.check_ckan_version(u"2.9"):
+if tk.check_ckan_version("2.9"):
     from ckanext.accessrequests.plugin.flask_plugin import MixinPlugin
 else:
     from ckanext.accessrequests.plugin.pylons_plugin import MixinPlugin
@@ -18,25 +18,23 @@ else:
 
 def user_delete(context, data_dict=None):
     """
-  :param context:
-  :return: True if user is sysadmin or admin in top level org
-  """
+    :param context:
+    :return: True if user is sysadmin or admin in top level org
+    """
     return check_access_account_requests(context)
 
 
 def check_access_account_requests(context, data_dict=None):
     """
-  :param context:
-  :return: True if user is sysadmin or admin in top level org
-  """
+    :param context:
+    :return: True if user is sysadmin or admin in top level org
+    """
     user = context.get("user")
     orgs = model.Group.get_top_level_groups(type="organization")
     user_is_admin_in_top_org = None
     if orgs:
         for org in orgs:
-            if authz.has_user_permission_for_group_or_org(
-                org.id, user, "admin"
-            ):
+            if authz.has_user_permission_for_group_or_org(org.id, user, "admin"):
                 user_is_admin_in_top_org = True
                 break
 
