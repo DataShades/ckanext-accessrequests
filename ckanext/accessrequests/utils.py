@@ -145,7 +145,7 @@ def _save_new_pending(context):
             try:
                 mailer.mail_recipient("Admin", admin_email, "Account request", msg)
             except mailer.MailerException as e:
-                h.flash(f"Email error: {e}")
+                h.flash_error(f"Email error: {e}")
         h.flash_success(
             "Your request for access to the {0} has been submitted.".format(
                 config.get("ckan.site_title")
@@ -350,7 +350,7 @@ def account_requests_management():
                     "Admin", admin_email, "Account request feedback", msg
                 )
             except mailer.MailerException as e:
-                h.flash(f"Email error: {e}")
+                h.flash_error(f"Email error: {e}")
     elif action == "approve":
         user_org = params["org"]
         user_role = params["role"]
@@ -378,7 +378,7 @@ def account_requests_management():
                     "Admin", admin_email, "Account request feedback", msg
                 )
             except mailer.MailerException as e:
-                h.flash(f"Email error: {e}")
+                h.flash_error(f"Email error: {e}")
         try:
             org_dict = tk.get_action("organization_show")(context, {"id": user_org})
         except tk.ObjectNotFound:
