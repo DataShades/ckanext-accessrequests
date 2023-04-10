@@ -330,16 +330,20 @@ def account_requests_management():
             "as to why your request has been "
             "rejected please contact the NSW Flood Data Portal ({2})"
         )
-        mailer.mail_recipient(
-            user.fullname,
-            user.email,
-            "Account request",
-            msg.format(
-                config.get("ckan.site_title"),
-                c.userobj.fullname,
-                c.userobj.email,
-            ),
-        )
+        try:
+            mailer.mail_recipient(
+                user.fullname,
+                user.email,
+                "Account request",
+                msg.format(
+                    config.get("ckan.site_title"),
+                    c.userobj.fullname,
+                    c.userobj.email,
+                ),
+            )
+        except Exception as e:
+            log.error("Error emailing invite to user: %s", e)
+
         msg = ("User account request for {0} " "has been rejected by {1}").format(
             user.fullname or user_name, c.userobj.fullname
         )
@@ -388,6 +392,6 @@ def account_requests_management():
             mailer.send_invite(user, org_dict, user_role)
         except Exception as e:
             log.error("Error emailing invite to user: %s", e)
-            return tk.abort(500, _("Error: couldn" "t email invite to user"))
+
 
     return render("user/account_requests_management.html")
