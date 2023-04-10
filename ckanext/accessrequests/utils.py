@@ -12,7 +12,6 @@ import ckan.lib.helpers as h
 import ckan.lib.mailer as mailer
 import ckan.logic.schema as schema
 import ckan.model as model
-from ckan.logic.validators import user_id_exists
 
 from ckanext.activity.logic.validators import object_id_validators
 from ckanext.activity.model.activity import Activity
@@ -98,7 +97,7 @@ def _save_new_pending(context):
 
     try:
         # captcha.check_recaptcha(request)
-        user_dict = tk.get_action("user_create")(context, data)
+        user_dict = tk.get_action("user_create")(dict(context, ignore_auth=True), data)
         if params["organization-for-request"]:
             organization = model.Group.get(data["organization_request"])
             sys_admin = (
@@ -314,7 +313,7 @@ def account_requests_management():
     activity_dict = {"user_id": c.userobj.id, "object_id": user_id}
     list_admin_emails = tk.aslist(config.get("ckanext.accessrequests.approver_email"))
     if action == "forbid":
-        object_id_validators["reject new user"] = user_id_exists
+        object_id_validators["reject new user"] = "user_id_exists"
         activity_dict["activity_type"] = "reject new user"
         tk.get_action("activity_create")(activity_create_context, activity_dict)
         org = tk.get_action("organization_list_for_user")(
@@ -354,7 +353,7 @@ def account_requests_management():
     elif action == "approve":
         user_org = params["org"]
         user_role = params["role"]
-        object_id_validators["approve new user"] = user_id_exists
+        object_id_validators["approve new user"] = "user_id_exists"
         activity_dict["activity_type"] = "approve new user"
         tk.get_action("activity_create")(activity_create_context, activity_dict)
         org_display_name, org_role = _assign_user_to_org(
