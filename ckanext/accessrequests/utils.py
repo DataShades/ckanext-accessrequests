@@ -91,7 +91,7 @@ def _save_new_pending(context):
 
     try:
         # captcha.check_recaptcha(request)
-        user_dict = tk.get_action("user_create")(context, data)
+        user_dict = tk.get_action("user_create")(dict(context, ignore_auth=True), data)
         if params["organization-for-request"]:
             organization = model.Group.get(data["organization_request"])
             sys_admin = (
@@ -140,7 +140,7 @@ def _save_new_pending(context):
                     "Admin", admin_email, "Account request", msg
                 )
             except mailer.MailerException as e:
-                h.flash("Email error: {0}".format(e.message), allow_html=False)
+                h.flash("Email error: {0}".format(e), allow_html=False)
         h.flash_success(
             "Your request for access to the {0} has been submitted.".format(
                 config.get("ckan.site_title")
@@ -337,7 +337,8 @@ def account_requests_management():
             "as to why your request has been "
             "rejected please contact the NSW Flood Data Portal ({2})"
         )
-        mailer.mail_recipient(
+        try:
+            mailer.mail_recipient(
             user.fullname,
             user.email,
             "Account request",
@@ -346,7 +347,10 @@ def account_requests_management():
                 c.userobj.fullname,
                 c.userobj.email,
             ),
-        )
+            )
+        except mailer.MailerException as e:
+            h.flash("Email error: {0}".format(e), allow_html=False)
+
         msg = (
             "User account request for {0} " "has been rejected by {1}"
         ).format(user.fullname or user_name, c.userobj.fullname)
@@ -356,7 +360,7 @@ def account_requests_management():
                     "Admin", admin_email, "Account request feedback", msg
                 )
             except mailer.MailerException as e:
-                h.flash("Email error: {0}".format(e.message), allow_html=False)
+                h.flash("Email error: {0}".format(e), allow_html=False)
     elif action == "approve":
         user_org = params["org"]
         user_role = params["role"]
@@ -386,7 +390,7 @@ def account_requests_management():
                     "Admin", admin_email, "Account request feedback", msg
                 )
             except mailer.MailerException as e:
-                h.flash("Email error: {0}".format(e.message), allow_html=False)
+                h.flash("Email error: {0}".format(e), allow_html=False)
         try:
             org_dict = tk.get_action("organization_show")(
                 context, {"id": user_org}
