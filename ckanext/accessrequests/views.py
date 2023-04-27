@@ -44,19 +44,19 @@ class AccessRequestPerformResetView(PerformResetView):
             if (username is not None and username != u''):
                 user_dict[u'name'] = username
             user_dict[u'reset_key'] = g.reset_key
-            
+
             ## EXTRA FOR CHECKING IF USER ALREADY APPROVED AND INVITED
             approved_users = [
                 i for i in utils._approved_users() if user_dict['id'] == i.object_id
             ]
-            
+
             if user_state == 'pending' and not approved_users:
                 user_dict[u'state'] = user_state
                 h.flash_error(_(u'You cannot update your password while your account is in process of approval.'))
                 return h.redirect_to(u'home.index')
             else:
                 user_dict[u'state'] = model.State.ACTIVE
-                logic.get_action(u'user_update')(context, user_dict)
+                logic.get_action(u'user_update')(dict(context, ignore_auth=True), user_dict)
                 mailer.create_reset_key(context[u'user_obj'])
 
                 h.flash_success(_(u'Your password has been reset.'))
