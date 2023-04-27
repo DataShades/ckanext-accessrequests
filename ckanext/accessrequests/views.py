@@ -61,7 +61,7 @@ class AccessRequestPerformResetView(PerformResetView):
                 return h.redirect_to("home.index")
             else:
                 user_dict["state"] = model.State.ACTIVE
-                logic.get_action("user_update")(context, user_dict)
+                logic.get_action("user_update")(dict(context, ignore_auth=True), user_dict)
                 mailer.create_reset_key(context["user_obj"])
 
                 h.flash_success(_("Your password has been reset."))
