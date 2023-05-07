@@ -3,114 +3,117 @@
 
 {% block subtitle %}{{ _('Account requests') }}{% endblock %}
 
-{% block maintag %}<div role="main" class="account-requests-page">{% endblock %}
+{% block wrapper_class %} account-requests-page{% endblock %}
 
 {% block breadcrumb_content %}
-  <li class="active">{{ h.nav_link(_('Account requests'), named_route='account_requests') }}</li>
+    <li class="active">{{ h.nav_link(_('Account requests'), named_route='account_requests') }}</li>
 {% endblock %}
 
-{% block primary_content %}
-  <article class="module">
-  {% block page_header %}
-    <header class="module-content page-header">
-      {% if self.content_action() | trim %}
-        <div class="content_action">
-          {% block content_action %}{% endblock %}
-        </div>
-      {% endif %}
-      <ul class="nav nav-tabs">
-        {% block content_primary_nav %}
-          {{ h.build_nav_icon('user.index', _('List users')) }}
-          {{ h.build_nav_icon('accessrequests.account_requests', _('Account requests')) }}
-        {% endblock %}
-      </ul>
-    </header>
-  {% endblock %}
-    <h2 class="list-title">List of account requests</h2>
-    <div class="module-content">
-      {% if self.page_primary_action() | trim %}
-          <div class="page_primary_action">
-              {% block page_primary_action %}{% endblock %}
-          </div>
-      {% endif %}
-      {% block primary_content_inner %}
-          {% asset 'accessrequests/account_js' %}
+{% block primary %}
+    <div class="primary col" role="main">
+        {% block primary_content %}
+            <article class="module">
+                {% block page_header %}
+                    <header class="module-content page-header">
+                        {% if self.content_action() | trim %}
+                            <div class="content_action">
+                                {% block content_action %}{% endblock %}
+                            </div>
+                        {% endif %}
+                        <ul class="nav nav-tabs">
+                            {% block content_primary_nav %}
+                                {{ h.build_nav_icon('user.index', _('List users')) }}
+                                {{ h.build_nav_icon('accessrequests.account_requests', _('Account requests')) }}
+                            {% endblock %}
+                        </ul>
+                    </header>
+                {% endblock %}
+                <h2 class="list-title">List of account requests</h2>
+                <div class="module-content">
+                    {% if self.page_primary_action() | trim %}
+                        <div class="page_primary_action">
+                            {% block page_primary_action %}{% endblock %}
+                        </div>
+                    {% endif %}
+                    {% block primary_content_inner %}
+                        {% asset 'accessrequests/account_js' %}
 
-        <ul class="user-list">
-        {% if accounts %}
-          <table class="table table-striped table-bordered table-condensed">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Name</th>
-                <th>Org</th>
-                <th>Role</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for account in accounts %}
-                <tr>
-                  <td class="label-td">Email</td>
-                  <td>{{ account.email }}</td>
-                  <td class="label-td">Name</td>
-                  <td class="name-td">{{ account.name }}</td>
-                  <td class="label-td">Org</td>
-                  <td class="org-td">
-                    <div class="control-group control-small">
-                      <div class="controls ">
-                        <select class="account-requests-select" name="organization-for-request" id="organization-for-request" autocomplete="off">
-                            {% if allow_no_org %}
-                                <option value="" {% if not account.org %} selected="selected"{% endif %}>No organisation</option>
+                        <ul class="user-list">
+                            {% if accounts %}
+                                <table class="table table-striped table-bordered table-condensed">
+                                    <thead>
+                                        <tr>
+                                            <th>Email</th>
+                                            <th>Name</th>
+                                            <th>Org</th>
+                                            <th>Role</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for account in accounts %}
+                                            <tr>
+                                                <td class="label-td">Email</td>
+                                                <td>{{ account.email }}</td>
+                                                <td class="label-td">Name</td>
+                                                <td class="name-td">{{ account.name }}</td>
+                                                <td class="label-td">Org</td>
+                                                <td class="org-td">
+                                                    <div class="control-group control-small">
+                                                        <div class="controls ">
+                                                            <select class="account-requests-select" name="organization-for-request" id="organization-for-request" autocomplete="off">
+                                                                {% if allow_no_org %}
+                                                                    <option value="" {% if not account.org %} selected="selected"{% endif %}>No organisation</option>
+                                                                {% endif %}
+                                                                {% for org in organization %}
+                                                                    <option value="{{ org.id }}" {% if account.org and org.id == account.org.group.id %} selected="selected"{% endif %}>{{ org.display_name }}</option>
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="label-td">Role</td>
+                                                <td class="role-td">
+                                                    <div class="control-group control-small">
+                                                        <div class="controls ">
+                                                            <select class="account-requests-select" name="organization-role" id="organization-role" autocomplete="off">
+                                                                {% for role in roles %}
+                                                                    <option value="{{ role.value }}" {% if account.org and account.is_org and role.value == account.org.capacity %} selected="selected"{% endif %}>{{ role.text }}</option>
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="label-td">Actions</td><td class="btn-td">
+                                                    <button data-module="account-request-manage"
+                                                            data-module-action="approve"
+                                                            data-module-href="account_requests_management"
+                                                            data-module-id="{{ account.id }}"
+                                                            data-module-name="{{ account.username }}"
+                                                            class="btn btn-success">Approve
+                                                    </button>
+                                                    <button data-module="account-request-manage"
+                                                            data-module-action="forbid"
+                                                            data-module-href="account_requests_management"
+                                                            data-module-id="{{ account.id }}"
+                                                            data-module-name="{{ account.username }}"
+                                                            class="btn btn-info">Reject
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            {% else %}
+                                {{ _('There are no account requests pending.') }}
                             {% endif %}
-                            {% for org in organization %}
-                            <option value="{{ org.id }}" {% if account.org and org.id == account.org.group.id %} selected="selected"{% endif %}>{{ org.display_name }}</option>
-                          {% endfor %}
-                        </select>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="label-td">Role</td>
-                  <td class="role-td">
-                    <div class="control-group control-small">
-                      <div class="controls ">
-                        <select class="account-requests-select" name="organization-role" id="organization-role" autocomplete="off">
-                        {% for role in roles %}
-                          <option value="{{ role.value }}" {% if account.org and account.is_org and role.value == account.org.capacity %} selected="selected"{% endif %}>{{ role.text }}</option>
-                        {% endfor %}
-                        </select>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="label-td">Actions</td><td class="btn-td">
-                    <button data-module="account-request-manage"
-                            data-module-action="approve"
-                            data-module-href="account_requests_management"
-                            data-module-id="{{ account.id }}"
-                            data-module-name="{{ account.username }}"
-                            class="btn btn-success">Approve
-                    </button>
-                    <button data-module="account-request-manage"
-                            data-module-action="forbid"
-                            data-module-href="account_requests_management"
-                            data-module-id="{{ account.id }}"
-                            data-module-name="{{ account.username }}"
-                            class="btn btn-info">Reject
-                    </button>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        {% else %}
-          {{ _('There are no account requests pending.') }}
-        {% endif %}
-        </ul>
+                        </ul>
+                    {% endblock %}
+                </div>
+            </article>
         {% endblock %}
     </div>
-  </article>
-{% endblock %}
+{% endblock primary %}
 
-{% block secondary_content %}
-
+{% block secondary %}
 {% endblock %}

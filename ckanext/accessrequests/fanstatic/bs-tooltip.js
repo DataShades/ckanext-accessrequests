@@ -2,7 +2,12 @@ ckan.module('bs-tooltip', function($, _) {
   'use strict';
   return {
     initialize: function() {
-      $('[data-toggle=tooltip]').tooltip();
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(
+            el => {
+                console.log(el)
+                new bootstrap.Tooltip(el)
+            }
+        )
     }
   };
 });
