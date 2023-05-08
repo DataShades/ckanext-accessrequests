@@ -22,8 +22,8 @@
   {{ form.input("name", id="field-username", label=_("Username"), placeholder=_("username"), value=data.name, error=errors.name, classes=["control-medium"], is_required=true, attrs={'required':'required'}) }}
   {{ form.input("fullname", id="field-fullname", label=_("Full Name"), placeholder=_("Joe Bloggs"), value=data.fullname, error=errors.fullname, classes=["control-medium"], is_required=true, attrs={'required':'required'}) }}
   {{ form.input("email", id="field-email", label=_("Email"), type="email", placeholder=_("joe@example.com"), value=data.email, error=errors.email, classes=["control-medium"], is_required=true, attrs={'required':'required'}) }}
-  <div class="control-group control-medium">
-      <label class="control-label">Organisation</label>
+  <div class="form-group control-medium">
+      <label class="form-label">Organisation</label>
     <div class="controls ">
         <select name="organization-for-request" id="organization-for-request" {% if not allow_no_org %}required{% endif %}>
             {% if  allow_no_org %}

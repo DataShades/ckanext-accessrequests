@@ -1,6 +1,6 @@
 jQuery(document).ready(function(){
   var org = $('#organization-for-request');
-  var role_div = $('#role').closest('.control-group');
+  var role_div = $('#role').closest('.form-group');
   if (!org.val()) {
     role_div.hide();
   }
