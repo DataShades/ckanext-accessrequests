@@ -49,7 +49,7 @@ def check_access_account_requests(context, data_dict=None):
 def request_reset(context, data_dict=None):
     if tk.request.method == "POST":
         context = {"model": model, "ignore_auth": True}
-        data_dict = {"id": tk.request.params.get("user")}
+        data_dict = {"id": tk.request.form.get("user")}
         try:
             user_dict = tk.get_action("user_show")(context, data_dict)
         except tk.ObjectNotFound:
