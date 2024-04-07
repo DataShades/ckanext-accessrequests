@@ -48,7 +48,7 @@ def check_access_account_requests(context, data_dict=None):
 @tk.auth_allow_anonymous_access
 def request_reset(context, data_dict=None):
     if tk.request.method == "POST":
-        context = {"model": model, "user": tk.c.user}
+        context = {"model": model, "ignore_auth": True}
         data_dict = {"id": tk.request.params.get("user")}
         try:
             user_dict = tk.get_action("user_show")(context, data_dict)
