@@ -96,7 +96,7 @@ def _save_new_pending(context):
     )
 
     try:
-        # captcha.check_recaptcha(request)
+        captcha.check_recaptcha(request)
         user_dict = tk.get_action("user_create")(dict(context, ignore_auth=True), data)
         if params["organization-for-request"]:
             organization = model.Group.get(data["organization_request"])
