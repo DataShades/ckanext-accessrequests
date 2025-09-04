@@ -1,22 +1,17 @@
-# -*- coding: utf-8 -*-
+from __future__ import annotations
 
-import json
-
-import ckantoolkit as tk
-from six import string_types
-
+from typing import Any
+import ckan.plugins.toolkit as tk
+from ckan.common import CKANConfig
 import ckan.authz as authz
 import ckan.lib.helpers as h
-import ckan.model as model
 import ckan.plugins as plugins
+import ckanext.accessrequests.views as views
 
-if tk.check_ckan_version("2.9"):
-    from ckanext.accessrequests.plugin.flask_plugin import MixinPlugin
-else:
-    from ckanext.accessrequests.plugin.pylons_plugin import MixinPlugin
+from ckan import types, model
 
 
-def user_delete(context, data_dict=None):
+def user_delete(context: types.Context, data_dict: dict[str, Any] | None = None):
     """
     :param context:
     :return: True if user is sysadmin or admin in top level org
@@ -24,7 +19,9 @@ def user_delete(context, data_dict=None):
     return check_access_account_requests(context)
 
 
-def check_access_account_requests(context, data_dict=None):
+def check_access_account_requests(
+    context: types.Context, data_dict: dict[str, Any] | None = None
+):
     """
     :param context:
     :return: True if user is sysadmin or admin in top level org
@@ -46,7 +43,7 @@ def check_access_account_requests(context, data_dict=None):
 
 
 @tk.auth_allow_anonymous_access
-def request_reset(context, data_dict=None):
+def request_reset(context: types.Context, data_dict: dict[str, Any] | None = None):
     if tk.request.method == "POST":
         context = {"model": model, "ignore_auth": True}
         data_dict = {"id": tk.request.form.get("user")}
@@ -59,30 +56,21 @@ def request_reset(context, data_dict=None):
     return {"success": True}
 
 
-class AccessRequestsPlugin(MixinPlugin, plugins.SingletonPlugin):
+class AccessRequestsPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IAuthFunctions)
+    plugins.implements(plugins.IBlueprint)
+
+    # IBlueprint
+
+    def get_blueprint(self):
+        return views.get_blueprints()
 
     # IConfigurer
 
-    def update_config(self, config_):
-        tk.add_template_directory(config_, "../templates")
+    def update_config(self, config: CKANConfig):
+        tk.add_template_directory(config, "../templates")
         tk.add_resource("../fanstatic", "accessrequests")
-        if tk.check_ckan_version(min_version="2.9.0"):
-            mappings = config_.get("ckan.legacy_route_mappings", {})
-            if isinstance(mappings, string_types):
-                mappings = json.loads(mappings)
-
-            bp_routes = []
-            mappings.update(
-                {
-                    "account_requests": "accessrequests.account_requests",
-                    "request_account": "accessrequests.request_account",
-                    "account_requests_management": "accessrequests.account_requests_management",
-                }
-            )
-            # https://github.com/ckan/ckan/pull/4521
-            config_["ckan.legacy_route_mappings"] = json.dumps(mappings)
 
     def get_auth_functions(self):
         return {

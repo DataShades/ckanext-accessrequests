@@ -21,7 +21,10 @@ filterwarnings = [
 ]
 
 [tool.pyright]
-pythonVersion = "3.7"
+pythonVersion = "3.10"
+extraPaths = [
+           "../ckan",
+]
 include = ["ckanext"]
 exclude = [
     "**/test*",
@@ -92,11 +95,5 @@ reportUnsupportedDunderAll = true
 reportUnusedCoroutine = true
 reportUnnecessaryTypeIgnoreComment = true
 reportMatchNotExhaustive = true
-
-[tool.commitizen]
-name = "cz_conventional_commits"
-version = "0.0.1"
-tag_format = "v$version"
-version_files = ["setup.cfg:version", "setup.py:version"]
-major_version_zero = true
-changelog_incremental = true
+reportAny = false
+reportExplicitAny = false

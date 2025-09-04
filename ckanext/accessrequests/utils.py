@@ -1,12 +1,13 @@
-# -*- coding: utf-8 -*-
+from __future__ import annotations
+
+from ckan import types
+from typing import Any
 import binascii
 import logging
 import os
 
-import ckantoolkit as tk
-import sqlalchemy
+import ckan.plugins.toolkit as tk
 
-import ckan.authz as authz
 import ckan.lib.captcha as captcha
 import ckan.lib.helpers as h
 import ckan.lib.mailer as mailer
@@ -18,11 +19,6 @@ from ckanext.activity.model.activity import Activity
 
 log = logging.getLogger(__name__)
 
-_ = tk._
-c = tk.c
-request = tk.request
-render = tk.render
-config = tk.config
 
 role_labels = {
     "editor": "Standard Editor",
@@ -32,30 +28,32 @@ role_labels = {
 }
 
 
-def request_account(data=None, errors=None, error_summary=None):
+def request_account(
+    data: dict[str, Any] | None = None,
+    errors: dict[str, Any] | None = None,
+    error_summary: dict[str, Any] | None = None,
+):
     """GET to display a form for requesting a user account or POST the
     form data to submit the request.
     """
-    params = request.form if tk.check_ckan_version("2.9") else request.params
-    context = {
-        "model": model,
-        "session": model.Session,
-        "user": c.user or c.author,
-        "auth_user_obj": c.userobj,
-        "schema": schema.user_new_form_schema(),
-        "save": "save" in params,
-    }
+    params = tk.request.form
+    context = types.Context(
+        {
+            "schema": schema.user_new_form_schema(),
+            "save": "save" in params,
+        }
+    )
     if context["save"] and not data:
         return _save_new_pending(context)
 
-    if c.user and not data:
+    if tk.current_user.is_authenticated and not data:
         # Don't offer the registration form if already logged in
-        return render("user/logout_first.html")
+        return tk.render("user/logout_first.html")
 
     data = data or {}
     errors = errors or {}
     error_summary = error_summary or {}
-    organization, roles = _get_orgs_and_roles(context)
+    organization, roles = _get_orgs_and_roles()
     vars = {
         "data": data,
         "errors": errors,
@@ -63,25 +61,22 @@ def request_account(data=None, errors=None, error_summary=None):
         "organization": organization,
         "roles": roles,
         "allow_no_org": tk.asbool(
-            config.get("ckanext.accessrequests.allow_no_org", True)
+            tk.config.get("ckanext.accessrequests.allow_no_org", True)
         ),
     }
 
-    c.is_sysadmin = authz.is_sysadmin(c.user)
-    c.form = render("user/new_user_form.html", extra_vars=vars)
-
-    return render(
+    return tk.render(
         "user/new.html",
         extra_vars={
-            "form": c.form,
+            "form": tk.render("user/new_user_form.html", extra_vars=vars),
         },
     )
 
 
-def _save_new_pending(context):
+def _save_new_pending(context: types.Context) -> types.Response | str:
     errors = {}
     error_summary = {}
-    params = request.form if tk.check_ckan_version("2.9") else request.params
+    params = tk.request.form
     password = str(binascii.b2a_hex(os.urandom(15)))
     data = dict(
         fullname=params["fullname"],
@@ -96,25 +91,18 @@ def _save_new_pending(context):
     )
 
     try:
-        captcha.check_recaptcha(request)
-        user_dict = tk.get_action("user_create")(dict(context, ignore_auth=True), data)
+        captcha.check_recaptcha(tk.request)
+        context = tk.fresh_context(context)
+        context["ignore_auth"] = True
+        user_dict = tk.get_action("user_create")(context, data)
         if params["organization-for-request"]:
             organization = model.Group.get(data["organization_request"])
-            sys_admin = (
-                model.Session.query(model.User)
-                .filter(
-                    sqlalchemy.and_(
-                        model.User.sysadmin == True,  # noqa
-                        model.User.state == "active",
-                    )
-                )
-                .first()
-                .name
-            )
+            sys_admin = tk.get_action("get_site_user")({"ignore_auth": True}, {})
+
             tk.get_action("organization_member_create")(
-                {"user": sys_admin},
+                {"user": sys_admin["name"]},
                 {
-                    "id": organization.id,
+                    "id": organization.id if organization else None,
                     "username": user_dict["name"],
                     "role": data["role"] if data["role"] else "member",
                 },
@@ -122,6 +110,8 @@ def _save_new_pending(context):
             role = data["role"].title() if data["role"] else "Member"
         else:
             organization = None
+            role = None
+
         msg = (
             "A request for a new user account has been submitted:"
             "\nUsername: {}"
@@ -138,7 +128,7 @@ def _save_new_pending(context):
             h.url_for("accessrequests.account_requests", qualified=True),
         )
         list_admin_emails = tk.aslist(
-            config.get("ckanext.accessrequests.approver_email")
+            tk.config.get("ckanext.accessrequests.approver_email")
         )
         for admin_email in list_admin_emails:
             try:
@@ -147,7 +137,7 @@ def _save_new_pending(context):
                 h.flash_error(f"Email error: {e}")
         h.flash_success(
             "Your request for access to the {0} has been submitted.".format(
-                config.get("ckan.site_title")
+                tk.config.get("ckan.site_title")
             )
         )
     except tk.ValidationError as e:
@@ -157,17 +147,17 @@ def _save_new_pending(context):
             error_summary = e.error_summary
         return request_account(data, errors, error_summary)
     except captcha.CaptchaError:
-        errors["Captcha"] = [_("Bad Captcha. Please try again.")]
+        errors["Captcha"] = [tk._("Bad Captcha. Please try again.")]
         error_summary["Captcha"] = "Bad Captcha. Please try again."
         return request_account(data, errors, error_summary)
 
     return h.redirect_to("/")
 
 
-def _get_orgs_and_roles(context):
+def _get_orgs_and_roles():
     """Return a list of orgs and roles"""
     organizations = tk.get_action("organization_list")({}, {})
-    organization = []
+    organization: list[dict[str, Any]] = []
     for org in organizations:
         organization.append(
             tk.get_action("organization_show")(
@@ -182,7 +172,7 @@ def _get_orgs_and_roles(context):
                 },
             )
         )
-    roles = tk.get_action("member_roles_list")(context, {"group_type": "organization"})
+    roles = tk.get_action("member_roles_list")({}, {"group_type": "organization"})
     role_order = ("editor", "member", "admin", "")
     roles = sorted(
         [r for r in roles if r["value"] not in ("creator", "downloader")],
@@ -199,7 +189,7 @@ def _get_orgs_and_roles(context):
 def _not_approved():
     """Return a True if user not approved"""
     approved_users = _approved_users()
-    approved_users_id = []
+    approved_users_id: list[str] = []
     for user in approved_users:
         approved_users_id.append(user.object_id)
     return approved_users_id
@@ -227,22 +217,13 @@ def _all_account_requests():
 
 
 def account_requests():
-    from ckanext.accessrequests.plugin import check_access_account_requests
-
-    context = {
-        "model": model,
-        "user": c.user,
-        "auth_user_obj": c.userobj,
-    }
-    organization, roles = _get_orgs_and_roles(context)
-    has_access = check_access_account_requests(context)
-    if not has_access["success"]:
+    organization, roles = _get_orgs_and_roles()
+    try:
+        tk.check_access("check_access_account_requests", {})
+    except tk.NotAuthorized:
         return tk.abort(
             401,
-            _(
-                "Need to be system administrator or admin "
-                "in top-level org to administer"
-            ),
+            "Need to be system administrator or admin in top-level org to administer",
         )
     not_approved_users = _not_approved()
     accounts = [
@@ -257,20 +238,20 @@ def account_requests():
         for user, member, is_org in _all_account_requests()
         if user.id not in not_approved_users
     ]
-    return render(
+    return tk.render(
         "user/account_requests.html",
         {
             "accounts": accounts,
             "organization": organization,
             "roles": roles,
             "allow_no_org": tk.asbool(
-                config.get("ckanext.accessrequests.allow_no_org", True)
+                tk.config.get("ckanext.accessrequests.allow_no_org", True)
             ),
         },
     )
 
 
-def _assign_user_to_org(user_id, user_org, user_role, context):
+def _assign_user_to_org(user_id: str, user_org: str, user_role: str):
     if not user_org:
         return (None, None)
     org_role = user_role if user_role else "member"
@@ -281,49 +262,46 @@ def _assign_user_to_org(user_id, user_org, user_role, context):
     )
     if org and org.group.id != user_org:
         tk.get_action("organization_member_delete")(
-            context, {"id": org.group.id, "username": user_id}
+            {}, {"id": org.group.id, "username": user_id}
         )
     org = tk.get_action("organization_member_create")(
-        context, {"id": user_org, "username": user_id, "role": org_role}
+        {}, {"id": user_org, "username": user_id, "role": org_role}
     )
     org_new = model.Group.get(org["group_id"])
-    return (org_new.title, org_role.title() if user_org else None)
+    return (org_new.title if org_new else None, org_role.title() if user_org else None)
 
 
 def account_requests_management():
     """Approve or reject an account request"""
-    params = request.form if tk.check_ckan_version("2.9") else request.params
+    params = tk.request.form
     action = params["action"]
     user_id = params["id"]
     user_name = params["name"]
     user = model.User.get(user_id)
 
-    context = {
-        "model": model,
-        "user": c.user,
-        "session": model.Session,
-    }
-    activity_create_context = {
-        "model": model,
-        "user": user_name,
-        "defer_commit": True,
-        "ignore_auth": True,
-        "session": model.Session,
-    }
-    activity_dict = {"user_id": c.userobj.id, "object_id": user_id}
-    list_admin_emails = tk.aslist(config.get("ckanext.accessrequests.approver_email"))
+    user = tk.current_user  # pyright: ignore[reportUnknownVariableType]
+
+    if not isinstance(user, model.User):
+        raise tk.NotAuthorized
+
+    activity_dict = {"user_id": user.id, "object_id": user_id}
+    list_admin_emails = tk.aslist(
+        tk.config.get("ckanext.accessrequests.approver_email")
+    )
     if action == "forbid":
         object_id_validators["reject new user"] = "user_id_exists"
         activity_dict["activity_type"] = "reject new user"
-        tk.get_action("activity_create")(activity_create_context, activity_dict)
+        tk.get_action("activity_create")(
+            {"defer_commit": True, "ignore_auth": True}, activity_dict
+        )
         org = tk.get_action("organization_list_for_user")(
             {"user": user_name}, {"permission": "read"}
         )
         if org:
             tk.get_action("organization_member_delete")(
-                context, {"id": org[0]["id"], "username": user_name}
+                {}, {"id": org[0]["id"], "username": user_name}
             )
-        tk.get_action("user_delete")(context, {"id": user_id})
+        tk.get_action("user_delete")({}, {"id": user_id})
         msg = (
             "Your account request for {0} has been rejected by {1}"
             "\n\nFor further clarification "
@@ -332,20 +310,20 @@ def account_requests_management():
         )
         try:
             mailer.mail_recipient(
-                user.fullname,
-                user.email,
+                user.display_name,
+                user.email or "",
                 "Account request",
                 msg.format(
-                    config.get("ckan.site_title"),
-                    c.userobj.fullname,
-                    c.userobj.email,
+                    tk.config.get("ckan.site_title"),
+                    user.fullname,
+                    user.email,
                 ),
             )
         except Exception as e:
             log.error("Error emailing invite to user: %s", e)
 
-        msg = ("User account request for {0} " "has been rejected by {1}").format(
-            user.fullname or user_name, c.userobj.fullname
+        msg = ("User account request for {0} has been rejected by {1}").format(
+            user.fullname or user_name, user.fullname
         )
         for admin_email in list_admin_emails:
             try:
@@ -359,9 +337,13 @@ def account_requests_management():
         user_role = params["role"]
         object_id_validators["approve new user"] = "user_id_exists"
         activity_dict["activity_type"] = "approve new user"
-        tk.get_action("activity_create")(activity_create_context, activity_dict)
+        tk.get_action("activity_create")(
+            {"defer_commit": True, "ignore_auth": True}, activity_dict
+        )
         org_display_name, org_role = _assign_user_to_org(
-            user_id, user_org, user_role, context
+            user_id,
+            user_org,
+            user_role,
         )
         # Send invitation to complete registration
         msg = (
@@ -372,7 +354,7 @@ def account_requests_management():
             user.fullname or user_name,
             org_display_name,
             org_role,
-            c.userobj.fullname,
+            user.fullname,
         )
 
         for admin_email in list_admin_emails:
@@ -383,7 +365,7 @@ def account_requests_management():
             except mailer.MailerException as e:
                 h.flash_error(f"Email error: {e}")
         try:
-            org_dict = tk.get_action("organization_show")(context, {"id": user_org})
+            org_dict = tk.get_action("organization_show")({}, {"id": user_org})
         except tk.ObjectNotFound:
             org_dict = None
 
@@ -393,5 +375,4 @@ def account_requests_management():
         except Exception as e:
             log.error("Error emailing invite to user: %s", e)
 
-
-    return render("user/account_requests_management.html")
+    return tk.render("user/account_requests_management.html")
