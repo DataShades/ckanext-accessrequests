@@ -69,8 +69,8 @@ class AccessRequestsPlugin(plugins.SingletonPlugin):
     # IConfigurer
 
     def update_config(self, config: CKANConfig):
-        tk.add_template_directory(config, "../templates")
-        tk.add_resource("../fanstatic", "accessrequests")
+        tk.add_template_directory(config, "templates")
+        tk.add_resource("fanstatic", "accessrequests")
 
     def get_auth_functions(self):
         return {
