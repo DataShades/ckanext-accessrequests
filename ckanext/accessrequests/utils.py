@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from ckan import types
-from typing import Any
 import binascii
 import logging
 import os
-
-import ckan.plugins.toolkit as tk
+from typing import Any
 
 import ckan.lib.captcha as captcha
 import ckan.lib.helpers as h
 import ckan.lib.mailer as mailer
 import ckan.logic.schema as schema
 import ckan.model as model
+import ckan.plugins.toolkit as tk
+from ckan import types
 
 from ckanext.activity.logic.validators import object_id_validators
 from ckanext.activity.model.activity import Activity
@@ -37,14 +36,9 @@ def request_account(
     form data to submit the request.
     """
     params = tk.request.form
-    context = types.Context(
-        {
-            "schema": schema.user_new_form_schema(),
-            "save": "save" in params,
-        }
-    )
-    if context["save"] and not data:
-        return _save_new_pending(context)
+
+    if "save" in params and not data:
+        return _save_new_pending(params)
 
     if tk.current_user.is_authenticated and not data:
         # Don't offer the registration form if already logged in
@@ -73,27 +67,27 @@ def request_account(
     )
 
 
-def _save_new_pending(context: types.Context) -> types.Response | str:
+def _save_new_pending(params: dict[str, Any]) -> types.Response | str:
     errors = {}
     error_summary = {}
-    params = tk.request.form
     password = str(binascii.b2a_hex(os.urandom(15)))
-    data = dict(
-        fullname=params["fullname"],
-        name=params["name"],
-        password1=password,
-        password2=password,
-        state=model.State.PENDING,
-        email=params["email"],
-        organization_request=params["organization-for-request"],
-        reason_to_access=params["reason-to-access"],
-        role=params["role"],
-    )
+    data = {
+        "fullname": params["fullname"],
+        "name": params["name"],
+        "password1": password,
+        "password2": password,
+        "state": model.State.PENDING,
+        "email": params["email"],
+        "organization_request": params["organization-for-request"],
+        "reason_to_access": params["reason-to-access"],
+        "role": params["role"],
+    }
 
     try:
         captcha.check_recaptcha(tk.request)
-        context = tk.fresh_context(context)
-        context["ignore_auth"] = True
+        context = types.Context(
+            {"schema": schema.user_new_form_schema(), "ignore_auth": True}
+        )
         user_dict = tk.get_action("user_create")(context, data)
         if params["organization-for-request"]:
             organization = model.Group.get(data["organization_request"])
