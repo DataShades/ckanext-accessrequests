@@ -271,14 +271,16 @@ def account_requests_management():
     action = params["action"]
     user_id = params["id"]
     user_name = params["name"]
-    user = model.User.get(user_id)
+    requested_user = model.User.get(user_id)
 
-    user = tk.current_user  # pyright: ignore[reportUnknownVariableType]
+    moderator = tk.current_user  # pyright: ignore[reportUnknownVariableType]
 
-    if not isinstance(user, model.User):
+    if not isinstance(moderator, model.User):
         raise tk.NotAuthorized
+    if not requested_user:
+        raise tk.ObjectNotFound
 
-    activity_dict = {"user_id": user.id, "object_id": user_id}
+    activity_dict = {"user_id": moderator.id, "object_id": user_id}
     list_admin_emails = tk.aslist(
         tk.config.get("ckanext.accessrequests.approver_email")
     )
@@ -304,20 +306,20 @@ def account_requests_management():
         )
         try:
             mailer.mail_recipient(
-                user.display_name,
-                user.email or "",
+                requested_user.display_name,
+                requested_user.email or "",
                 "Account request",
                 msg.format(
                     tk.config.get("ckan.site_title"),
-                    user.fullname,
-                    user.email,
+                    moderator.fullname,
+                    moderator.email,
                 ),
             )
         except Exception as e:
             log.error("Error emailing invite to user: %s", e)
 
         msg = ("User account request for {0} has been rejected by {1}").format(
-            user.fullname or user_name, user.fullname
+            requested_user.fullname or user_name, moderator.fullname
         )
         for admin_email in list_admin_emails:
             try:
@@ -345,10 +347,10 @@ def account_requests_management():
             "(Organization : {1}, Role: {2}) "
             "has been approved by {3}"
         ).format(
-            user.fullname or user_name,
+            requested_user.fullname or user_name,
             org_display_name,
             org_role,
-            user.fullname,
+            moderator.fullname,
         )
 
         for admin_email in list_admin_emails:
@@ -363,9 +365,8 @@ def account_requests_management():
         except tk.ObjectNotFound:
             org_dict = None
 
-        user.name = user.name
         try:
-            mailer.send_invite(user, org_dict, user_role)
+            mailer.send_invite(requested_user, org_dict, user_role)
         except Exception as e:
             log.error("Error emailing invite to user: %s", e)
 
